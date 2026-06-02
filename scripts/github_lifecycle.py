@@ -593,7 +593,7 @@ def _hygiene_check(repo: str, staged: list) -> dict:
 
 def _staged_files(repo: str) -> list:
     rc, out, _ = _run(["git", "diff", "--staged", "--name-only"], repo)
-    return [ln for ln in out.splitlines() if ln.strip()] if rc == 0 else []
+    return [l for l in out.splitlines() if l.strip()] if rc == 0 else []
 
 
 def cmd_commit(args, repo: str) -> tuple:

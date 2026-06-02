@@ -469,15 +469,15 @@ def cmd_list(args) -> int:
 
     lessons = load_lessons(repo)
     if args.json:
-        print(json.dumps([le.as_dict() for le in lessons], indent=2))
+        print(json.dumps([l.as_dict() for l in lessons], indent=2))
     else:
         if not lessons:
             print("No lessons stored for this repo.")
-        for le in lessons:
-            print(f"{le.lesson_id}  {le.created}  [{le.trigger}]")
-            print(f"    task: {le.task}")
-            print(f"    lesson: {le.lesson}")
-            print(f"    tags: {', '.join(le.tags)}")
+        for l in lessons:
+            print(f"{l.lesson_id}  {l.created}  [{l.trigger}]")
+            print(f"    task: {l.task}")
+            print(f"    lesson: {l.lesson}")
+            print(f"    tags: {', '.join(l.tags)}")
     return 0
 
 

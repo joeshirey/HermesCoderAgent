@@ -141,13 +141,13 @@ terminal(
   1. Ensure that the correct GCP project is set in the active `gcloud` configuration:
 
      ```bash
-     /path/to/google-cloud-sdk/bin/gcloud config set project <gcp-project-id>
+     /Users/you/Downloads/google-cloud-sdk/bin/gcloud config set project <gcp-project-id>
      ```
 
   2. Verify that the SDK's `bin/` directory is appended to your environment `$PATH` so the silent authentication and keyring provider can resolve credentials and project state:
 
      ```bash
-     export PATH=$PATH:/path/to/google-cloud-sdk/bin
+     export PATH=$PATH:/Users/you/Downloads/google-cloud-sdk/bin
      ```
 
   3. Ensure environment variables `GOOGLE_CLOUD_PROJECT` and `CLOUDSDK_CORE_PROJECT` are set to your active project ID (e.g., `your-gcp-project-id`).
@@ -160,7 +160,7 @@ terminal(
 ### "Skill 'harness-antigravity' not found" Error
 
 - **Cause:** The skill directory structure (`harness/antigravity/SKILL.md`) and the frontmatter name mismatch can cause standard `skill_view` calls with `harness-antigravity` or `antigravity` to fail.
-- **Solution:** Load the skill by combining the category and directory name: `skill_view(name="harness:antigravity")`. Alternatively, fall back to reading the file directly using the `read_file` tool with the path `~/.hermes-coder/skills/harness/antigravity/SKILL.md`.
+- **Solution:** Load the skill by combining the category and directory name: `skill_view(name="harness:antigravity")`. Alternatively, fall back to reading the file directly using the `read_file` tool with the path `/Users/you/.hermes-coder/skills/harness/antigravity/SKILL.md`.
 
 ### Bash Syntax & Parsing Errors in Dispatch Prompts
 

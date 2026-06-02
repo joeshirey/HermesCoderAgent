@@ -125,11 +125,11 @@ class TestContentScan(unittest.TestCase):
             return gl._scan_content(d, [name])
 
     def test_flags_macos_home_path(self):
-        issues = self._scan_one("Makefile", "build:\n\t/Users/dev/go/bin/templ generate\n")
+        issues = self._scan_one("Makefile", "build:\n\t/Users/you/go/bin/templ generate\n")
         self.assertEqual(len(issues), 1)
         self.assertEqual(issues[0]["severity"], "warn")
         self.assertTrue(issues[0]["path"].endswith(":2"))
-        self.assertIn("/Users/dev/go/bin/templ", issues[0]["reason"])
+        self.assertIn("/Users/you/go/bin/templ", issues[0]["reason"])
 
     def test_flags_linux_and_windows_home_paths(self):
         self.assertEqual(len(self._scan_one("run.sh", "BIN=/home/alice/go/bin/air\n")), 1)

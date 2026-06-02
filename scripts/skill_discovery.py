@@ -56,10 +56,11 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import security_auditor  # noqa: E402
 import skill_ingest  # noqa: E402
 import container_runner  # noqa: E402
 from vetted_vault import (  # noqa: E402
-    load_registry, VAULT_DIR,
+    classify, check_source, load_registry, VAULT_DIR,
 )
 from harness_llm import resolve_engine  # noqa: E402
 from github_lifecycle import _read_flat_yaml_value  # noqa: E402

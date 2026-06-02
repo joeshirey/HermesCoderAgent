@@ -727,7 +727,7 @@ def _print_summary(journal: DebugJournal, exit_code: int):
             print(f"      {error}")
 
     if journal.source_edit_violations:
-        print("\nSource edit violations (reverted):")
+        print(f"\nSource edit violations (reverted):")
         for v in journal.source_edit_violations:
             print(f"  - {v}")
 

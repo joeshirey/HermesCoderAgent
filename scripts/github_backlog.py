@@ -24,9 +24,7 @@ In "gated" mode a mutation requires --confirm; otherwise the tool returns an
 "awaiting_confirmation" preview without touching the remote. --dry-run always
 previews and never mutates.
 
-Create/enrich/triage only ever CREATE or ENRICH issues — they never close or merge.
-The groom subcommand MAY close stale-past-grace and confirmed-duplicate issues behind
-the autonomy gate (never in default gated mode, and suppressed by --no-close).
+This tool only ever CREATES or ENRICHS issues. It never closes or merges.
 Issue bodies never include a Co-Authored-By trailer (author is the repository owner).
 
 Usage:
@@ -152,8 +150,8 @@ BACKLOG_STATE_LABELS = {
 def _conflicting_states(new_labels, current_labels) -> list:
     """State labels currently on the issue that a new label set supersedes."""
     new = set(new_labels)
-    return [lbl for lbl in current_labels
-            if lbl in BACKLOG_STATE_LABELS and lbl not in new]
+    return [l for l in current_labels
+            if l in BACKLOG_STATE_LABELS and l not in new]
 
 
 @dataclass
@@ -619,7 +617,7 @@ def _list_untriaged(repo: str, limit: int) -> tuple:
         return [], "could not parse gh issue list output"
     candidates = []
     for it in issues:
-        names = [lbl.get("name", "") for lbl in it.get("labels", [])]
+        names = [l.get("name", "") for l in it.get("labels", [])]
         has_type = any(n.startswith("type:") for n in names)
         needs_triage = "backlog:needs-triage" in names
         if (not has_type) or needs_triage:
@@ -674,7 +672,7 @@ def _iso_days_ago(iso_str: str) -> int:
 
 
 def _label_names(issue: dict) -> list:
-    return [lbl.get("name", "") for lbl in issue.get("labels", [])]
+    return [l.get("name", "") for l in issue.get("labels", [])]
 
 
 def _text_norm(title: str, body: str) -> str:
@@ -858,7 +856,7 @@ def cmd_enrich(args, repo: str) -> tuple:
     objective = _extract_objective(old_body)
     task = args.task or objective or title
 
-    current_labels = [lbl.get("name", "") for lbl in data.get("labels", [])]
+    current_labels = [l.get("name", "") for l in data.get("labels", [])]
 
     autonomy = resolve_autonomy(repo, args.autonomy)
     body, labels, metadata, mcode = _build_enrichment(
@@ -1269,7 +1267,7 @@ def cmd_list(args, repo: str) -> tuple:
         return BacklogResult("error", "list", error="could not parse gh output"), 2
     backlog = []
     for it in issues:
-        names = [lbl.get("name", "") for lbl in it.get("labels", [])]
+        names = [l.get("name", "") for l in it.get("labels", [])]
         if any(n.startswith("backlog:") for n in names):
             backlog.append({"number": it.get("number"),
                             "title": it.get("title", ""),
@@ -1294,7 +1292,7 @@ def cmd_status(args, repo: str) -> tuple:
         data = json.loads(out)
     except json.JSONDecodeError:
         return BacklogResult("error", "status", error="could not parse gh output"), 2
-    names = [lbl.get("name", "") for lbl in data.get("labels", [])]
+    names = [l.get("name", "") for l in data.get("labels", [])]
     relations = parse_relations_metadata(data.get("body", "")) or {}
     return BacklogResult(
         "ok", "status", issue_number=data.get("number"),
@@ -1500,7 +1498,7 @@ def main():
     p_gr.add_argument("--skip-stale", action="store_true",
                       help="Skip the stale/decay audit")
 
-    sub.add_parser("list", parents=[common],
+    p_ls = sub.add_parser("list", parents=[common],
                           help="List opted-in backlog issues (read-only)")
 
     p_st = sub.add_parser("status", parents=[common],

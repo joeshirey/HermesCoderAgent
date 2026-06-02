@@ -20,8 +20,9 @@ Never copied into the snapshot:
 
 - **Secrets / credentials:** `.env`, `auth.json`, `auth.lock`, any API keys or tokens.
 - **State / runtime:** `*.db*`, `channel_directory.json`, `gateway_state.json`,
-  `processes.json`, `*.pid`, `*.lock`, `logs/`, `cache/`, `sessions/`, `memories/`,
-  `*_cache.json`, `state-snapshots/`.
+  `processes.json`, `*.pid`, `*.lock`, `*.key`, `*.pem`, `*.token`, `logs/`, `cache/`,
+  `sessions/`, `memories/`, `*_cache.json`, `state-snapshots/`, `sandboxes/`,
+  `audio_cache/`, `image_cache/`, `pairing/`, `lsp/`, `hooks/`, `bin/`, `cron/`.
 - **Vetted-vault contents** and `.hermes-quarantine/` (downloaded third-party code).
 - **Personal/working content:** the live backlog, personal notes/blogs, drafts.
 - **Host-agent runtime:** the full `config.yaml` (messaging transports, providers, voice,
@@ -46,6 +47,45 @@ drag along the credential-bearing git remote and history).
    sample config and `.env.example`, the deploy template, and the guides.
 4. **Verify** (see checklist below), then `git init` with **no remote** and commit.
 
+## Automating the loop (fail-closed publisher)
+
+Steps 1–2 and 4 are repetitive and security-critical, so the live system runs them as a
+scheduled **fail-closed publisher**: it refreshes the snapshot daily and pushes only when
+every gate passes. The script is part of the live system and is **not shipped here** (it
+hard-codes live machine paths). The principles it enforces — adopt them in your own
+automation:
+
+- **Allowlist, never denylist.** It copies only an explicit list of curated files
+  (engine scripts, the curated skills, `SOUL.md`). A brand-new secret file added to the
+  live home dir tomorrow can never leak, because it is not on the list. The hand-authored
+  value-add (READMEs, guides, this file, the sample config / `.env.example`, the deploy
+  template, `LICENSE`) is **frozen** — re-syncing it would clobber the editorial
+  genericization with raw live prose.
+- **Never clone the live home dir.** Its `.git` remote can embed a credential
+  (a PAT in the URL). A clone would drag that along. The publisher copies files into a
+  separate repo whose `origin` is asserted to be exactly the clean public URL with **no
+  credentials** (`@`, `ghp_`, `github_pat` in the remote URL → abort).
+- **Gates run in order and any failure aborts before commit/push:** lint-source
+  (auto-fix then verify) → allowlist-copy → genericize → scrub-scan → `py_compile` +
+  unit tests → lint-snapshot. An all-green run is the only path to `git push`.
+- **Markdown linting is two-stage and mandatory.** The live source is linted *first*
+  (auto-fixed in place, then re-verified) so the authoritative system stays clean and
+  the snapshot never inherits drift; the snapshot is then linted again before push as a
+  backstop. The linter is a **hard dependency** — a missing linter aborts (it is not an
+  optional warning), and any residual violation after auto-fix aborts. Config
+  (`.markdownlint.json`) exempts hard tabs inside fenced code blocks
+  (`MD010: {code_blocks: false}`) so indented code samples are not mangled, while still
+  flagging stray tabs in prose.
+- **Scan only what could ship.** The scrub respects `.gitignore` (it scans tracked +
+  untracked-but-not-ignored files). Gitignored runtime junk (`cache/`, local editor
+  config, `sessions/`, …) lives in the working tree but can never be committed, so
+  scanning it would only produce false aborts.
+- **Distinguish machine identity from intentional attribution.** A machine username or
+  home path is *always* a leak. The owner's legal name is a leak in synced code/docs
+  (genericized away there) but is **intentional** in attribution files (`LICENSE`
+  copyright, `NOTICE`), which are exempt from the name check — never from the
+  token/credential checks.
+
 ## Scrub checklist
 
 Run before committing. Every grep must come back empty (except intentional placeholder
@@ -55,11 +95,17 @@ examples like `/Users/you/...` in test fixtures).
 # No real username anywhere:
 grep -rn "<your-username>" .
 
-# No PAT / API-key / bot-token shapes:
-grep -rnE "ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AIza[A-Za-z0-9_-]{20,}|xox[baprs]-" .
+# No PAT / API-key / bot-token / generic-secret shapes:
+grep -rnE "ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AIza[A-Za-z0-9_-]{20,}|xox[baprs]-|sk-[A-Za-z0-9]{20,}" .
+
+# No credential-bearing URL (user:secret@host) — this is how a PAT hides in a git remote:
+grep -rnE "://[^/[:space:]:@]+:[^/[:space:]@]+@" .
 
 # No real absolute machine/home paths (placeholders like /Users/you are fine):
 grep -rnE "/Users/[a-z]|/home/[a-z]" . | grep -v "/Users/you"
+
+# Owner's real name only where it belongs (LICENSE/NOTICE copyright); nowhere in code/docs:
+grep -rn "<owner-name>" . | grep -vE "(^|/)(LICENSE|NOTICE)"
 ```
 
 Manual checks:

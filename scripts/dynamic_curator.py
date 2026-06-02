@@ -19,6 +19,7 @@ Exit codes:
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -126,7 +127,7 @@ def heuristic_analyze(task: str) -> Optional[dict]:
                 "size": "S",
                 "confidence": "high",
                 "method": "heuristic",
-                "reasoning": "Single-file edit with simple verb",
+                "reasoning": f"Single-file edit with simple verb",
                 "signals": signals,
             }
 

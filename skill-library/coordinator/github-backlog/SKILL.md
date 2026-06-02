@@ -236,4 +236,4 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
 ### 2. GCP SDK & Environment Configuration for Antigravity Engine
 
 - **Problem**: When using `antigravity` (agy) as the backlog research or LLM engine, calls will fail if the Google Cloud SDK path is unconfigured or credentials cannot be resolved.
-- **Solution**: Always append your Google Cloud SDK `bin` directory (e.g., `/path/to/google-cloud-sdk/bin`) to the command environment's `$PATH` and ensure the active GCP project is set via `GOOGLE_CLOUD_PROJECT` and `CLOUDSDK_CORE_PROJECT` env variables (e.g., `your-gcp-project-id`).
+- **Solution**: Always append `/Users/you/Downloads/google-cloud-sdk/bin` to the command environment's `$PATH` and ensure the active GCP project is set via `GOOGLE_CLOUD_PROJECT` and `CLOUDSDK_CORE_PROJECT` env variables (e.g., `your-gcp-project-id`).
