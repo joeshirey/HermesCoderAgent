@@ -1,0 +1,40 @@
+# Secrets / credentials — never commit
+.env
+*.pem
+*.key
+*.p12
+id_rsa
+credentials.json
+auth.json
+auth.lock
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Runtime state / caches (mirrors the live system's excluded state)
+logs/
+cache/
+sessions/
+memories/
+*_cache.json
+*.db
+*.db-*
+*.pid
+*.lock
+state-snapshots/
+.hermes-quarantine/
+.hermes-debug/
+.hermes-lessons/
+.hermes-worktrees/
+vetted_vault/
+
+# Local agent/editor session config (carries machine paths — never commit)
+.claude/
+
+# OS junk
+.DS_Store
+*.log

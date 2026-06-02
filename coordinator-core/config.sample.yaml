@@ -1,0 +1,213 @@
+# hermes-coder — coordinator config (sample)
+#
+# This is a SLIM, sanitized sample containing only the coordinator-relevant
+# blocks. The live system runs inside a larger host agent whose config.yaml
+# also carries host-platform runtime sections (model/providers, terminal,
+# web/browser, tts/stt/voice, display, and the messaging transports
+# telegram/slack/discord/matrix with their channel IDs and secrets). The host
+# agent owns those — they are intentionally omitted here. Copy the blocks you
+# need into your own config and adjust the values.
+#
+# Secrets never live in this file. API keys and bot tokens come from the
+# environment (see .env.example). Paths are relative to the hermes home dir.
+
+# ── Coding harness selection ──────────────────────────────────────
+# The user-selected coding harness. LLM-backed support passes (humanizer
+# rewrite, complexity triage, retrospective summaries, security audit,
+# backlog grooming) route their inference here via scripts/harness_llm.py.
+# Override per-invocation with --engine.
+coding:
+  default_engine: claude-code   # claude-code | antigravity | opencode
+
+# ── Skills / Curator ──────────────────────────────────────────────
+skills:
+  external_dirs: []
+  template_vars: true
+  inline_shell: false
+  inline_shell_timeout: 10
+  guard_agent_created: false
+curator:
+  enabled: true
+  interval_hours: 168
+  min_idle_hours: 2
+  stale_after_days: 30
+  archive_after_days: 90
+  backup:
+    enabled: true
+    keep: 5
+
+# ── Local Model Integration (optional; "no local models" is a valid stance) ──
+# Disable this block to route every LLM pass through coding.default_engine
+# instead of a local Ollama model. See capabilities/local-models/README.md.
+ollama:
+  enabled: false
+  base_url: http://localhost:11434
+  timeout: 60
+  health_check_on_startup: true
+  default_model: gemma4:latest
+  models:
+    gemma4:latest:
+      display_name: Gemma 4 8B
+      parameter_size: 8B
+      capabilities: [formatting, filtering, simple-analysis, rewriting, classification]
+      max_context: 8192
+      max_tokens: 2048
+      good_for: [humanizer-pass, triage-classification, commit-rewriting, slop-detection]
+      not_good_for: [multi-file-reasoning, complex-architecture, deep-debugging]
+
+# ── Complexity Triage ─────────────────────────────────────────────
+triage:
+  enabled: true
+  script: scripts/dynamic_curator.py
+  heuristics_first: true
+  routing:
+    local_sizes: [S]
+    cloud_sizes: [M, L, XL]
+    cloud_model: gemini-3.5-flash
+    cloud_provider: gemini
+    local_model: gemma4:latest
+  always_cloud_keywords:
+    - security
+    - authentication
+    - cryptography
+    - database migration
+    - schema change
+    - race condition
+    - concurrent
+  tool_budgets:
+    S: {max_skills: 0, max_mcp_tools: 0, max_turns: 10}
+    M: {max_skills: 1, max_mcp_tools: 3, max_turns: 15}
+    L: {max_skills: 3, max_mcp_tools: 3, max_turns: 25}
+    XL: {max_skills: 3, max_mcp_tools: 5, max_turns: 40}
+
+# ── Humanizer Gateway ─────────────────────────────────────────────
+humanizer:
+  enabled: true
+  script: scripts/humanizer_gateway.py
+  # LLM anti-AI pass routes through coding.default_engine (override with --engine).
+  gate_artifacts: [commit, pr, doc, chat]
+  bypass_contexts: [internal-dispatch, kanban-note, cron-output]
+  voice_cache_ttl_hours: 24
+  voice_cache_dir: cache/voice_samples
+  fallback: rules-only
+
+# ── Auto-Healing ──────────────────────────────────────────────────
+auto_healing:
+  enabled: true
+  script: scripts/auto_healer.py
+  max_attempts: 3
+  check_timeout: 120
+  supported_checkers: [pytest, ruff, eslint, tsc, go-vet]
+
+# ── Systematic Debugger ───────────────────────────────────────────
+systematic_debugger:
+  enabled: true
+  script: scripts/systematic_debugger.py
+  journal_dir: .hermes-debug
+  require_regression_test: true
+  auto_stash_before_fix: true
+
+# ── GitHub Delivery ───────────────────────────────────────────────
+github:
+  enabled: true
+  script: scripts/github_lifecycle.py
+  autonomy: gated            # gated | push-draft | full
+  default_base: main
+  draft_prs: true
+  ci_poll_interval: 15
+  ci_watch_timeout: 1800
+  per_project_config: .hermes-github.yaml
+
+# ── GitHub-Integrated Backlog Management ──────────────────────────
+github_backlog:
+  enabled: true
+  script: scripts/github_backlog.py
+  autonomy: gated                     # mirrors github_lifecycle
+  per_project_config: .hermes-backlog.yaml
+  draft_research_with_harness: true   # read-only harness dispatch for research sections
+  humanize_prose: true                # run issue bodies through humanizer_gateway
+  triage_limit: 20
+  triage_comment: true
+  groom_limit: 200
+  groom_stale_days: 60
+  groom_stale_grace_days: 14
+  groom_dup_threshold: 0.85
+  groom_bottleneck_min: 3
+  groom_llm_confirm_dup: true
+
+# ── Retrospective / Memory Loop ───────────────────────────────────
+retrospective:
+  enabled: true
+  script: scripts/retrospective.py
+  store_dir: .hermes-lessons
+  capture_on_heal_retries: true
+  capture_on_debug: true
+  max_inject: 3
+  match_threshold: 0.05
+
+# ── Parallel Multi-Task Dispatching ───────────────────────────────
+parallel_dispatch:
+  enabled: true
+  script: scripts/parallel_dispatch.py
+  max_parallel: 3
+  worktree_dir: .hermes-worktrees
+  branch_prefix: hermes/
+  dispatch_timeout: 600
+  auto_merge: false   # never — coordinator reviews and merges each branch
+
+# ── Vetted Vault / Trust Tiers (#6) ───────────────────────────────
+vetted_vault:
+  enabled: true
+  script: scripts/vetted_vault.py
+  registry: vetted_tools.json
+  vault_dir: vetted_vault
+  trusted_orgs: [google, anthropic, aws, microsoft, modelcontextprotocol]
+  local_tier1: true
+  require_confirm_tiers: [2, 3]
+  auditor_enabled: true
+  container_runner_enabled: true
+  archive_dir: vetted_vault/.archive
+
+security_auditor:
+  enabled: true
+  script: scripts/security_auditor.py
+  block_on: [FAIL]            # FAIL hard-blocks; WARN advisory
+  audited_extensions: [.py, .js, .ts, .tsx, .jsx, .mjs, .cjs, .sh, .bash, .rb, .go, .json, .yaml, .yml]
+  max_llm_files: 12
+  fallback: static-only       # auditor LLM down -> static verdict still gates
+
+container_runner:
+  enabled: true
+  script: scripts/container_runner.py
+  default_image: nikolaik/python-nodejs:python3.11-nodejs20
+  network: none
+  read_only_mount: true
+  cpu_limit: "1"
+  memory_limit: 512m
+  run_timeout: 120
+  local_restricted_allow_tier: [1]   # no sandbox -> only Tier 1 may run
+
+skill_ingest:
+  enabled: true
+  script: scripts/skill_ingest.py
+  quarantine_dir: .hermes-quarantine
+  require_confirm_tiers: [2, 3]
+
+# ── Dynamic Skill Discovery + Injection (#11) ─────────────────────
+# Discovers task-relevant skills from a curated allowlist of trusted indexes,
+# gates them by source reputation, vets them through the #6 gateway
+# (security_auditor -> vetted_vault -> container_runner), and injects the
+# approved skills into the active harness. Reputation drives policy:
+#   trusted   -> auto-vault on clean audit
+#   known     -> require --confirm + sandbox code
+#   unknown   -> require --confirm + sandbox
+# A FAIL audit hard-blocks regardless of reputation; discovery fails open to local-only.
+skill_discovery:
+  enabled: true
+  script: scripts/skill_discovery.py
+  allowlist_indexes: [anthropics, openai, google, firebase, microsoft, aws, huggingface, modelcontextprotocol]
+  top_k: 3
+  auto_vault_trusted: true
+  require_confirm: [known, untrusted]
+  sandbox_code_for: [known, untrusted]
+  refresh_cron: "0 9 * * 1"    # documented only; NOT auto-registered
