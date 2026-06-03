@@ -217,21 +217,12 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
 
 ## Troubleshooting & Pitfalls
 
-### Batch Creation Execution Timeout (300s limit)
+### 1. Sequential & Bulk Creation Timeouts
 
-- **Problem**: Running multiple sequential `create` or `enrich` commands in a single python script (e.g., via `execute_code`) or in a single tool invocation can easily exceed the 300-second tool execution limit. This happens because each issue creation triggers an LLM research pass, structured RFC drafting, and humanizer filtering through the active harness.
+- **Problem**: Running multiple sequential `create` or `enrich` commands in a single `terminal()` call or Python script can easily trigger tool execution timeouts. Because each issue creation triggers an LLM-backed harness call to research, draft an RFC body, and humanize prose, a single creation can take **100–150 seconds** under certain environments.
 - **Solution**:
-  1. Break large backlog creations into smaller batches of 2-3 issues per tool invocation.
-  2. Alternatively, invoke the creations independently to allow intermediate saving of progress and prevent cascading timeouts.
-
-## Troubleshooting & Pitfalls
-
-### 1. Bulk Creation Timeouts in `execute_code`
-
-- **Problem**: Running multiple `github_backlog.py create` commands sequentially inside an `execute_code` tool call can easily hit its strict **5-minute timeout**. Because each issue creation triggers an LLM-backed harness call to classify, draft an RFC body, and humanize the prose, each command can take 40–70 seconds.
-- **Solution**:
-  - Batch bulk creations into smaller blocks of 2–3 issues per `execute_code` run.
-  - Alternatively, use a foreground `terminal()` call with a higher timeout (up to 600 seconds) to execute the sequence of commands.
+  - **Single Issue per Call (Recommended)**: For bulk additions, invoke the backlog tool once per issue in independent `terminal()` commands with a generous timeout (e.g. `--timeout 250`). This prevents cascading timeouts, preserves intermediate progress, and ensures highly reliable execution.
+  - **Avoid sequential bulk creations in `execute_code`**: Sequential calls will easily exceed its strict 5-minute timeout limit.
 
 ### 2. GCP SDK & Environment Configuration for Antigravity Engine
 
