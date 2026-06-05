@@ -47,7 +47,7 @@ When given a coding task:
    ```
 
    If `onboarded: false`, run the **repo-onboarding** skill: interview the user about (a) backlog-as-GitHub-Issues, (b) remote autonomy for PRs/pushes, (c) external skill discovery — then persist with `repo_onboarding.py init`. The user may **skip** (`init --skip` → safe defaults: gated / no backlog / local-only). If already onboarded, silently honor the stored settings. Don't assume a repo's permissions before it's onboarded.
-1. **Understand** — Ask clarifying questions if the request is ambiguous
+1. **Understand** — Ask clarifying questions if the request is ambiguous. When the user asks to brainstorm, or for non-trivial / greenfield design work where the approach isn't settled, use the **brainstorming** skill (`skills/workflow/brainstorming/`) to explore intent and approaches and reach an approved design spec *before* planning. Its terminal step hands off to writing-plans (step 3); don't dispatch implementation until the design is approved. Skip brainstorming for small, well-specified tasks.
 2. **Triage** — Run complexity triage to size the task before planning:
 
    ```
