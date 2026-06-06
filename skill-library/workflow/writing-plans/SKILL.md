@@ -183,6 +183,14 @@ Every task that produces code includes the full TDD cycle in its dispatch prompt
 
 When initializing a new repository, directory structure, or toolchain, always establish a comprehensive `.gitignore` file as the very first step. Never stage or commit changes without checking that dependency directories (such as `node_modules/`), compiled binaries, local tools caches (e.g. `tmp/` or test/run artifacts), or credentials are kept untracked. If files are accidentally tracked, run `git rm -r --cached <files>` immediately to untrack them before any pull request is merged.
 
+### Monorepo & Stale Compilation Hygiene
+
+When planning or executing verification checks in TypeScript/JS or compiled-asset monorepos (such as `squad` or Go applications with generated views), always ensure that a complete, clean build is run (e.g. `npm run build`, `templ generate`) *before* executing the test runner. Running tests directly after making code edits in these environments will often execute against stale, outdated build artifacts (such as compiled JS in `dist/` or `out/`), resulting in false-negative test failures and misleading diagnostic paths.
+
+### Sequential Backlog Triage and Timeout Prevention
+
+When executing bulk backlog mutations (such as triage or enrichment across multiple issues), running a single monolithic command (e.g. `triage --limit 20`) can easily exceed tool execution timeouts. Because each issue requires research, RFC-style drafting, and humanizing, a single issue can take 100–150 seconds. The most reliable and robust workflow is to execute the backlog tool with `--limit 1` inside sequential, discrete tool calls. This saves intermediate progress incrementally on each iteration and completely prevents cascading timeouts.
+
 ## Remember
 
 ```

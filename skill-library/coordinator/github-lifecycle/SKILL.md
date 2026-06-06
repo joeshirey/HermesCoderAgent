@@ -62,10 +62,10 @@ portable and never flagged; generated/lock files (`package-lock.json`, `go.sum`,
 and vendored trees are skipped by the content scan. `.env.example`/`.env.sample` and `*.pub`
 are never flagged. On a `blocked` result, do not push — resolve the hygiene issue first.
 
-Push (gated — add `--confirm` only after user approval):
+Push (gated — add `--confirm` only after user approval; pass `--force` when updating a rebased feature branch):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py push --repo '<project-dir>' --json", workdir="~/.hermes-coder", timeout=180)
+terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py push --repo '<project-dir>' --force --json", workdir="~/.hermes-coder", timeout=180)
 ```
 
 **Always push through this tool — never a raw `git push`.** The `push` subcommand enforces two
@@ -81,7 +81,7 @@ touching nothing remote:
   so locally-created deliverables (deploy scripts, generated docs, config) are never left off the
   remote. Commit everything intended first.
 
-A raw `git push` via the terminal bypasses all of this — don't do it. Never force-push unless the
+A raw `git push` via the terminal bypasses all of this — don't do it. If you have rebased a feature branch, run `push` with the `--force` flag instead, which translates into a safe, tracking `git push --force-with-lease`. Never force-push on protected branches, and only force-push feature branches after explicit rebase coordination or user instruction.
 user explicitly instructs it.
 
 Open PR (gated; draft unless autonomy=full and `--ready`). **Always pass `--issue <N>` when the
@@ -164,6 +164,14 @@ JSON output (`--json`):
 This tool calls `humanizer_gateway.humanize()` internally for commit (`commit`) and PR (`pr`) prose, so the Humanize workflow step is already covered for git deliverables. The LLM pass runs through the default harness (`claude -p`); if that harness is unavailable, the rule-filtered text is still used. Commits are always authored as the repository owner only — any `Co-Authored-By` trailer is stripped.
 
 ## Pitfalls & Best Practices
+
+### Parallel Migration Heads and Alembic Linearization (Rebase Conflict)
+
+- **The Issue**: When rebasing a feature branch on top of `main` after another developer's migration PR was merged, you may encounter a merge conflict on existing parent migrations or get an Alembic `Multiple head revisions are present for given argument 'head'` error on startup. This happens because both branches created new migrations branching from the same common ancestor, creating parallel heads in the Alembic graph.
+- **The Solution**:
+  1. **Accept Upstream Parent Migrations**: During `git rebase`, if a parent migration file conflicts, discard your local version and checkout the version from `main` (`git checkout origin/main -- path/to/parent_migration.py`) since the parent migration must match canonical history.
+  2. **Linearize Your New Migration**: Open your newly created migration file and update its `down_revision` variable to point to the newly merged migration ID (the latest one from `main`) instead of the common ancestor. This linearizes the graph, making the upstream migration run first, followed by your new migration.
+  3. **Non-Interactive Rebase Continue**: When running `git rebase --continue`, prepend `env GIT_EDITOR=true` (or equivalent) to allow Git to commit and complete the rebase automatically without freezing or hanging on interactive terminal editor prompts.
 
 ### The Staging-Commit Verification Gap
 

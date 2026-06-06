@@ -134,5 +134,7 @@ terminal(
 
 ## Pitfalls & Gotchas
 
+- **Hangs on File Writing:** When orchestrating Claude Code via print-mode (`claude -p`), file-writing dispatches will freeze/halt waiting for confirmation unless `--dangerously-skip-permissions` is explicitly appended. Always append this flag for unattended or automated implementations.
+- **Lowercase Tool Names Hang:** Avoid passing lowercase or invalid tool names (like `'Read,Edit,Write,Bash'`) to `--allowedTools` when calling Claude Code (`claude -p`), as this causes immediate hangs. Use exact camelcase tool names (e.g. `ReadFile`, `WriteFile`, `EditFile`, `Bash`, `Glob`, `Grep`) or omit the `--allowedTools` flag entirely.
 - **`--max-turns` starvation:** If a print-mode task halts abruptly without committing or completing the requested output, you likely hit the turn limit. Check `git status` to verify the workspace state. For multi-file refactors, complex bug fixes, or test-writing sessions, increase `--max-turns` to **25-40** to prevent premature exits.
 - **Global Settings:** To prevent Claude Code from appending `Co-Authored-By` trailers to git commits, set `"includeCoAuthoredBy": false` in `~/.claude/settings.json`. This is preferred over adding the instruction to every prompt.

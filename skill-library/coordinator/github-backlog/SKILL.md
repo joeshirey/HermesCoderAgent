@@ -51,6 +51,8 @@ Seven namespaced categories, created idempotently by `init-labels`:
 (user-visible/internal-debt/dev-experience), `confidence:*` (high/medium/low), and `backlog:*`
 (needs-triage/draft-suggestion/groomed/blocked/ready) for the state machine.
 
+*For details on prefix-aware conflict resolution and cleaning up duplicate labels within these namespaces, see [duplicate_labels_resolution.md](references/duplicate_labels_resolution.md).*
+
 ## Autonomy gating
 
 Mutating subcommands (`init-labels`, `create`, `enrich`) respect a per-project autonomy level,
@@ -217,14 +219,98 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
 
 ## Troubleshooting & Pitfalls
 
-### 1. Sequential & Bulk Creation Timeouts
+### 1. Sequential & Bulk Creation/Triage Timeouts
 
-- **Problem**: Running multiple sequential `create` or `enrich` commands in a single `terminal()` call or Python script can easily trigger tool execution timeouts. Because each issue creation triggers an LLM-backed harness call to research, draft an RFC body, and humanize prose, a single creation can take **100–150 seconds** under certain environments.
+- **Problem**: Running multiple sequential `create` or `enrich` commands, or a bulk `triage --limit <N>` command (for multiple issues) in a single `terminal()` call can easily trigger tool execution timeouts. Because each issue creation/triage triggers an LLM-backed harness call to research, draft an RFC body, and humanize prose, a single issue's processing can take **100–150 seconds**. A batch of 3+ issues will easily exceed standard terminal timeout limits.
 - **Solution**:
-  - **Single Issue per Call (Recommended)**: For bulk additions, invoke the backlog tool once per issue in independent `terminal()` commands with a generous timeout (e.g. `--timeout 250`). This prevents cascading timeouts, preserves intermediate progress, and ensures highly reliable execution.
-  - **Avoid sequential bulk creations in `execute_code`**: Sequential calls will easily exceed its strict 5-minute timeout limit.
+  - **Single Issue per Call (Recommended)**: For bulk additions or triage, invoke the backlog tool once per issue (using `--limit 1` for triage) in independent, discrete `terminal()` commands with a generous timeout (e.g. `timeout=250` or `timeout=300`). This saves progress incrementally after each issue, prevents cascading timeouts, and ensures highly reliable execution.
+  - **Automated Incremental Script**: Alternatively, use the included support script `scripts/triage_loop.py` to run an unbuffered, sequential, self-healing background loop that processes all issues incrementally until the backlog is fully triaged and groomed.
+  - **Avoid sequential bulk creations or triage in `execute_code`**: These will quickly hit its strict 5-minute execution limit.
+
+### 2. Incremental Python Looping Workaround for Bulk Triage
+
+- **Problem**: When a repository has a large backlog of untriaged issues (e.g., 20+), running them sequentially using standard tools can still be slow and easily interrupted, and doing them in a single batch command is highly susceptible to total timeout failure (since writes only commit at the very end).
+- **Solution**: Create and run a lightweight, self-healing Python wrapper (like `triage_loop.py`) that executes `triage --limit 1 --confirm --json` inside an unbuffered loop (using `python3 -u`). This commits each triaged issue incrementally to the remote, logs progress in real-time, and can be started as an asynchronous background task with zero risk of transaction loss if interrupted.
+
+### 3. Selective Humanization of Backlog Descriptions
+
+- **Requirement**: Often, users expect the **Objective & Business Value** of an issue to be written in an accessible, highly articulate, humanized voice for general business stakeholders, while expecting the **Technical Context** and **Implementation Guidelines** to remain in their raw, precise, machine-analyzed state.
+- **Solution**: Patch the core backlog script (`draft_issue_body` in `github_backlog.py`) to bypass `_humanize_text` calls on the `technical` sections, reserving humanization solely for the `objective` block.
+  - **Avoid sequential bulk creations or triage in `execute_code`**: These will quickly hit its strict 5-minute execution limit.
+  - **Avoid sequential bulk creations or triage in `execute_code`**: These will quickly hit its strict 5-minute execution limit.
+
+### 2. Selective Humanization & Detailed Objectives
+
+- **Problem**: Running the prose humanizer across the entire issue body can strip out critical technical specifics (like line numbers, parameter names, or file paths) and make the Technical Context or Implementation Guidelines sections feel overly generic or watered-down.
+- **Solution**: Only run the prose humanizer on the **Objective & Business Value** section. This allows the objective to be highly articulate, detailed, and clear for both developers and non-technical stakeholders, while keeping technical context sections in their raw, precise, machine-analyzed state. This behavior is implemented in the backlog tool by bypassing humanization of the technical research block.
+
+### 3. Dynamic Length & Relative Verbosity
+
+- **Problem**: Writing overly verbose descriptions for small, routine tasks creates noise, while writing overly concise descriptions for massive architectural overhauls leaves critical context behind.
+- **Solution**: The length and verbosity of the *Objective & Business Value* section must always scale relative to the issue's estimated effort (LOE), complexity, and risk level.
+  - **Effort S (Small):** Keep it extremely concise (exactly 2 to 4 sentences in a single short paragraph). Focus strictly on a quick, clear definition of the goal.
+  - **Effort M (Medium):** Keep it concise (exactly 1 to 2 short paragraphs).
+  - **Effort L (Large):** Write a thorough, 2 to 3 paragraph description. Detail the system motivation, dependencies, and operational impact.
+  - **Effort XL (Extra Large):** Write a comprehensive multi-paragraph description (3 to 5 paragraphs), expanding on background context, architectural significance, and long-term value.
+  - **High-Risk / Critical Severity:** Append a dedicated focus sentence or paragraph highlighting safety, security, and stability implications.
+
+### 4. Namespace-Wide Label Conflicts
+
+- **Problem**: If the conflict resolver only filters the `backlog:*` namespace, re-triaging or enriching an issue can leave duplicate/conflicting labels from other namespaces (e.g., both `effort:L` and `effort:XL`, or `risk:high` and `risk:low`) on the issue simultaneously.
+- **Solution**: Ensure strict mutual exclusivity across *all* namespaced categories (`type:`, `severity:`, `effort:`, `risk:`, `impact:`, `confidence:`, and `backlog:`). For each category, extract the new label's prefix (e.g., `effort:`) and explicitly identify and remove any *other* existing labels sharing that prefix.
+  1. **Selective Humanization**: Only run the prose humanizer on the **Objective & Business Value** section. This keeps technical context sections in their raw, precise, machine-analyzed state.
+  2. **Relative Verbosity**: Scale the description's paragraph and sentence count directly to the estimated Effort, Risk, and Severity of the task:
+     - **S (Small) Effort**: Restrict to exactly **2 to 4 sentences** in a single paragraph. Focus on a quick, clear definition of the goal.
+     - **M (Medium) Effort**: Restrict to exactly **1 to 2 short paragraphs** focusing on the immediate objective and direct business value.
+     - **L (Large) Effort**: Write a thorough **2 to 3 paragraph** description detailing the system/architectural motivation, the ultimate goal, and operational impact.
+     - **XL (Extra Large) Effort**: Write a highly detailed, comprehensive **3 to 5 paragraph** analysis of the background, architectural significance, and long-term value.
+     - **High-Risk / Critical Severity**: When a task is high-risk or critical, dedicate a specific sentence or short paragraph strictly to highlighting safety, security, or stability implications.
+
+### 3. Scaled Verbosity Based on Effort & Complexity
+
+- **Problem**: Backlog descriptions can become overly verbose and tedious to read for small, simple tasks (S/M effort), while lacking crucial context and architectural background for complex ones (L/XL effort).
+- **Solution**: Dynamically scale the length and depth of the drafted **Objective & Business Value** section based directly on the task's estimated effort, risk, and severity:
+  - **Effort S**: 2 to 4 sentences in a single short paragraph, focusing strictly on a quick, clear definition of the goal. No multiple paragraphs.
+  - **Effort M**: Exactly 1 to 2 short paragraphs, focusing clearly on the objective and immediate business value.
+  - **Effort L**: A thorough 2 to 3 paragraph description, explaining the system motivation, ultimate goal, and operational impact.
+  - **Effort XL**: A highly comprehensive multi-paragraph description (3 to 5 paragraphs) detailing background, architectural significance, and long-term value.
+  - **High Risk / Critical Severity**: Append a specific paragraph/sentence highlighting the safety, security, and stability implications of the work.
+  - **Selective Humanization:** Only run the prose humanizer on the **Objective & Business Value** section. This keeps technical context sections in their raw, precise, machine-analyzed state.
+  - **Scaled Objectives (LOE Gated):** Scale the length and detail of the drafted objective based on the estimated **Effort** and **Risk**:
+    - **Effort S:** Extremely concise (exactly 2 to 4 sentences in a single short paragraph).
+    - **Effort M:** Concise (exactly 1 to 2 paragraphs focusing on immediate value).
+    - **Effort L:** Thorough (2 to 3 paragraphs detailing system motivation and operational impact).
+    - **Effort XL:** Highly comprehensive (3 to 5 paragraphs covering architectural background and long-term values).
+    - **High-Risk/Critical Severity:** Always append a specific safety and stability focus statement.
+
+### 3. Namespaced Label Mutual Exclusivity & Cleanup
+
+- **Problem**: When re-triaging or updating an issue, previous classifications (e.g. `effort:L` vs `effort:XL`) could end up both assigned to the issue simultaneously, creating conflicting metadata.
+- **Solution**: The conflict resolver `_conflicting_states` is generalized across all namespaced categories (`type:`, `severity:`, `effort:`, `risk:`, `impact:`, `confidence:`, `backlog:`). Applying a new classification automatically cleanses and removes any older, duplicate labels in those categories.
+
+### 3. Effort-Relative Objective Verbosity
+
+- **Problem**: Generating a uniform, highly verbose objective section for every issue makes simple tasks (effort `S`) feel bloated and noisy, while lacking the deep background required for complex architectural overhauls (effort `XL`).
+- **Solution**: Scale the length and detail of the **Objective & Business Value** section proportionally to the task's estimated **Effort (LOE)**, **Risk**, and **Severity**:
+  - **Effort S**: Extremely concise (exactly 2 to 4 sentences in a single short paragraph). Quick, clear definition of the goal.
+  - **Effort M**: Concise (exactly 1 to 2 short paragraphs) focusing clearly on the objective and immediate business value.
+  - **Effort L**: Thorough (exactly 2 to 3 paragraphs) explaining technical motivation, ultimate goal, and business impact.
+  - **Effort XL**: Comprehensive (3 to 5 paragraphs) detailing background context, architectural significance, and operational necessity.
+  - **High-Risk / Critical Severity**: Always append a specific focus paragraph or sentence highlighting safety, security, and stability implications.
+  - Only run the prose humanizer on the **Objective & Business Value** section. This keeps technical context sections in their raw, precise, machine-analyzed state.
+  - **Dynamic Verbosity Sizing**: The length and depth of the generated Objective & Business Value description must scale proportionally with the estimated **Effort (LOE)**, **Risk**, and **Severity** of the task to avoid bloating simple tasks:
+    - **S-sized Effort**: Exactly 2 to 4 sentences in a single short paragraph. Extremely concise definition of the immediate goal.
+    - **M-sized Effort**: Exactly 1 to 2 paragraphs focusing clearly on immediate objective and business value.
+    - **L-sized Effort**: 2 to 3 thorough paragraphs explaining the system/technical motivation and operations impact.
+    - **XL-sized Effort**: Detailed, multi-paragraph context (3 to 5 paragraphs) elaborating on background, architectural significance, and long-term values.
+    - **High-Risk / Critical Severity**: Automatically append or dedicate a focused section/sentences highlighting safety, security, and stability implications.
 
 ### 2. GCP SDK & Environment Configuration for Antigravity Engine
 
 - **Problem**: When using `antigravity` (agy) as the backlog research or LLM engine, calls will fail if the Google Cloud SDK path is unconfigured or credentials cannot be resolved.
 - **Solution**: Always append `/Users/you/Downloads/google-cloud-sdk/bin` to the command environment's `$PATH` and ensure the active GCP project is set via `GOOGLE_CLOUD_PROJECT` and `CLOUDSDK_CORE_PROJECT` env variables (e.g., `your-gcp-project-id`).
+
+## Repository Research Notes & References
+
+- **Golf League Backlog Research**: See [references/golfleague-backlog-research.md](references/golfleague-backlog-research.md) for concrete file paths, architectural patterns, and known PostgreSQL/Alembic pitfalls discovered during the `golfleague` triage sessions.
+- **College Football Pool Backlog Research**: See [references/collegefbpool-backlog-research.md](references/collegefbpool-backlog-research.md) for concrete file paths, schema details, native Google GenAI integrations, and custom bonus outcomes mapped out during the `CollegeFBPool` sessions.

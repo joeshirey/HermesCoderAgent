@@ -677,7 +677,8 @@ def cmd_push(args, repo: str) -> tuple:
 
     autonomy = resolve_autonomy(repo, args.autonomy)
     branch = _current_branch(repo)
-    preview = [f"git push -u origin {branch}"]
+    force_str = " --force-with-lease" if getattr(args, "force", False) else ""
+    preview = [f"git push{force_str} -u origin {branch}"]
 
     # Protected-branch guard. Pushing the default branch directly bypasses code
     # review entirely; the only way it should advance is a human-merged PR. Hard-
@@ -711,7 +712,8 @@ def cmd_push(args, repo: str) -> tuple:
             command_preview=preview,
         ), 1
 
-    rc, out, e = _run(["git", "push", "-u", "origin", branch], repo, timeout=120)
+    force_flag = ["--force-with-lease"] if getattr(args, "force", False) else []
+    rc, out, e = _run(["git", "push"] + force_flag + ["-u", "origin", branch], repo, timeout=120)
     if rc != 0:
         return ActionResult("failed", "push", error=f"push failed: {e or out}"), 1
     return ActionResult("done", "push", details=f"pushed {branch} to origin"), 0
@@ -894,6 +896,8 @@ def main():
                         help="Permit pushing the default/protected branch (main/master). "
                              "Off by default; still requires --confirm when autonomy is "
                              "gated. Use only after explicit user approval.")
+    p_push.add_argument("--force", action="store_true",
+                        help="Force push with lease (for rebased feature branches)")
 
     p_pr = sub.add_parser("pr", parents=[common], help="Open a (draft) PR (gated)")
     p_pr.add_argument("--base", help="Base branch (default: project/main)")

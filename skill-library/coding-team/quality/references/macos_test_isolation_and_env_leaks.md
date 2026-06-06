@@ -34,6 +34,28 @@ export function resolveGlobalPath(): string {
    - The test runner reads from and mutates the developer's **real, active system configuration** under `~/Library/Application Support/`, potentially damaging user state.
    - Tests that expect a pristine, empty database/configuration file will find existing developer configurations, causing bizarre, non-deterministic local test failures that never manifest in CI.
 
+### Pitfall in Test Assertion Helpers (Mirroring Code Mismatches)
+
+Another severe symptom of this platform branching occurs inside the test suite itself. When developers write custom assertion helpers (e.g., to verify that a file was written to the expected global path), they sometimes copy-paste or re-implement the old hardcoded platform checks within the helper:
+
+```typescript
+// PITFALL: Re-implementing platform logic in test helpers
+function getSquadsJsonPath(): string {
+  if (process.platform === 'darwin') {
+    return join(HOME, 'Library', 'Application Support', 'squad', 'squads.json');
+  }
+  return join(HOME, 'squad', 'squads.json');
+}
+```
+
+If the production code correctly uses the **Safe Resolution Pattern** (which respects `XDG_CONFIG_HOME` overrides across all platforms), but the test's hand-written assertion helper still branches hard on `darwin`, a silent path mismatch is created:
+
+1. The production code reads/writes to the sandbox root (`HOME/squad/squads.json`) because `XDG_CONFIG_HOME` is stubbed out.
+2. The test assertion checks `HOME/Library/Application Support/squad/squads.json`.
+3. The test fails because it cannot find the file in the library subdirectory, even though it was correctly created in the standard config root.
+
+**Resolution:** Test-internal file helpers must match the production resolution chain exactly—or simply return the unified platform-independent path (`join(HOME, 'squad', 'squads.json')`) if environment variables (such as `XDG_CONFIG_HOME`) are globally stubbed out.
+
 ---
 
 ## The Safe Resolution Pattern

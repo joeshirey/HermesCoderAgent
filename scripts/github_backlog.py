@@ -148,10 +148,20 @@ BACKLOG_STATE_LABELS = {
 
 
 def _conflicting_states(new_labels, current_labels) -> list:
-    """State labels currently on the issue that a new label set supersedes."""
-    new = set(new_labels)
-    return [l for l in current_labels
-            if l in BACKLOG_STATE_LABELS and l not in new]
+    """Find namespaced labels currently on the issue that the new label set supersedes."""
+    new_prefixes = {}
+    for l in new_labels:
+        if ":" in l:
+            prefix = l.split(":", 1)[0] + ":"
+            new_prefixes[prefix] = l
+
+    to_remove = []
+    for l in current_labels:
+        if ":" in l:
+            prefix = l.split(":", 1)[0] + ":"
+            if prefix in new_prefixes and l != new_prefixes[prefix]:
+                to_remove.append(l)
+    return to_remove
 
 
 @dataclass
@@ -438,6 +448,55 @@ def _research_sections(task: str, repo: str, engine: str) -> Optional[str]:
     return None
 
 
+def _research_objective(title: str, task: str, repo: str, engine: str, metadata: Optional[dict] = None) -> str:
+    """Use a read-only harness dispatch to draft a detailed Objective & Business Value section."""
+    effort = (metadata or {}).get("effort", "M")
+    risk = (metadata or {}).get("risk", "medium")
+    severity = (metadata or {}).get("severity", "medium")
+
+    # Determine length and verbosity rules based on effort, risk, and complexity
+    if effort == "S":
+        length_rule = (
+            "Keep the write-up extremely concise: exactly 2 to 4 sentences in a single short paragraph. "
+            "Do NOT write multiple paragraphs. Focus on a quick, clear definition of the goal."
+        )
+    elif effort == "M":
+        length_rule = (
+            "Keep the write-up concise: exactly 1 to 2 short paragraphs. "
+            "Focus clearly on the objective and immediate business value."
+        )
+    elif effort == "L":
+        length_rule = (
+            "Write a thorough 2 to 3 paragraph description. "
+            "Explain the technical/system motivation, the ultimate goal, and the positive impact on business/operations."
+        )
+    else:  # XL
+        length_rule = (
+            "Write a detailed and highly comprehensive multi-paragraph description (3 to 5 paragraphs). "
+            "Elaborate on the background context, architectural significance, operational necessity, "
+            "and long-term value to developers and non-technical stakeholders."
+        )
+
+    if risk == "high" or severity == "critical":
+        length_rule += (
+            " Since this task is high-risk or critical severity, explicitly highlight the "
+            "safety, security, or stability implications of this work."
+        )
+
+    prompt = (
+        "You are documenting a backlog issue for this repository. Do NOT edit any "
+        "files — read only. For the task below, write a description of the Objective and its Business Value. "
+        "Detail the problem being solved, the ultimate goal, and the value it brings to the user or system health. "
+        "Ensure anyone (both developers and non-technical stakeholders) can understand the content.\n\n"
+        f"Length & Verbosity Guideline: {length_rule}\n\n"
+        f"Title: {title}\n"
+        f"Task Description: {task}\n\n"
+        "Output ONLY the description text, with no headers, no intro/outro, and no code fences."
+    )
+    out = _dispatch(build_readonly_dispatch(prompt, engine, repo), repo)
+    return _extract_message(out).strip()
+
+
 def _default_technical_sections() -> str:
     return (
         "## 🔬 Technical Context & Research\n"
@@ -455,15 +514,18 @@ def draft_issue_body(title: str, task: str, metadata: dict, repo: str,
                      engine: str, use_harness: bool, humanize: bool,
                      existing_objective: str = "") -> str:
     """Build the RFC section-4 context-rich markdown body."""
-    objective = existing_objective.strip() or (task or title).strip()
+    objective = existing_objective.strip()
+    if not objective and use_harness:
+        objective = _research_objective(title, task, repo, engine, metadata)
+    if not objective:
+        objective = (task or title).strip()
+
     if humanize and objective:
         objective = _humanize_text(objective, "issue", repo)
 
     technical = None
     if use_harness:
         technical = _research_sections(task or title, repo, engine)
-        if technical and humanize:
-            technical = _humanize_text(technical, "issue", repo)
     if not technical:
         technical = _default_technical_sections()
 

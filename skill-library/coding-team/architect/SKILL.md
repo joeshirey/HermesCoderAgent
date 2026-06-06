@@ -65,6 +65,24 @@ When designing cloud-backed services (e.g., Firestore, DynamoDB, MongoDB):
 - **Target Named Databases**: Solve this by creating a secondary named database in Native Mode (e.g., `restres`) and instantiating the Go client using `NewClientWithDatabase(ctx, projectID, databaseID)` instead of the default constructor.
 - **Dynamic Database Routing**: Expose the database name as a configurable environment variable (e.g., `FIRESTORE_DATABASE`) to route queries dynamically across environments.
 
+## Codebase-Wide Architectural Audits & Backlog Recommendations
+
+When requested to conduct a codebase-wide architectural review, security audit, or generate technical recommendations for a project:
+
+### 1. The Core Metrics
+
+Always evaluate each discovered architectural item, security gap, technical debt, or recommended enhancement using these three explicit dimensions:
+
+- **Impact:** (e.g., High, Medium, Low) and its direct consequence (performance, security, maintainability).
+- **Level of Effort (LOE):** (e.g., Low (1-2 hours), Medium (2-4 hours), High (1-2 days)) to implement.
+- **Risk to Implementation:** (e.g., Low, Medium, High) to existing behaviors or integrations.
+
+### 2. Backlog Consolidation & Single Source of Truth
+
+Never create fragmented diagnostic or report files unless explicitly requested. Always consolidate findings directly into existing, single-source-of-truth backlog files (such as `BACKLOG.md` or `NEXT_STEPS.md`) at the root of the repository to maintain strict workspace hygiene and prevent document sprawl.
+
+---
+
 ## Claude Code Prompt Template
 
 When dispatching architecture-related tasks:

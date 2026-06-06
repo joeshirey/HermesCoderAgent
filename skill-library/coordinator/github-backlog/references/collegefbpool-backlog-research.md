@@ -55,5 +55,5 @@ This reference card details the repository structure, database configurations, a
 ## 👥 4. User Directory & Mock Login Bypass
 
 * **Player Seeding:** Populated the `users` database table from the `CFB 2025.xlsx` spreadsheet (`Standings` sheet) using a clean parsing script (`backend/scripts/seed_users.py`). Loaded all **20 players** as active users with mock emails and Google IDs.
-* **Commissioner Roles:** Automatically assigned **the repository owner** (and `Joseph Shirey`) and **Eric Huggins** as `commissioner` users.
-* **Local Bypass:** Since setting up Google OAuth credentials locally is tedious, use the local `/mock-login` endpoint. To test, navigate to `http://localhost:3000`, click **Mock Login**, and type `joe.shirey@example.com` to bypass Google authentication and sign in as commissioner immediately!
+* **Commissioner Roles:** Automatically assigned **the repository owner** and **Eric Huggins** as `commissioner` users.
+* **Local Bypass:** Since setting up Google OAuth credentials locally is tedious, use the local `/mock-login` endpoint. To test, navigate to `http://localhost:3000`, click **Mock Login**, and type `commissioner@example.com` to bypass Google authentication and sign in as commissioner immediately!

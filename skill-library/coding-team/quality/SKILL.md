@@ -39,6 +39,7 @@ Apply this lens when reviewing code for spec compliance, testing adequacy, and q
 
 - [Python PYTHONPATH for Test Runners](references/python_path_testing.md) — How to resolve `ModuleNotFoundError` when running backend tests.
 - [macOS Test Isolation & Global Environment Leaks](references/macos_test_isolation_and_env_leaks.md) — How to prevent platform-specific path leaks on macOS using `XDG_CONFIG_HOME`.
+- [Mocking Lazy-Loaded Subprocesses & Component Isolation](references/mocking_lazy_loaded_subprocesses.md) — How to prevent test hangs and timeout failures by isolating lazy-loaded subprocess components.
 
 ## Spec Compliance Review
 

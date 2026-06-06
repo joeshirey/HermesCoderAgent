@@ -63,6 +63,8 @@ When designing or updating automated cron jobs, background runners, or daily scr
 
 ## Common Pitfalls & Troubleshooting
 
+- **Serverless Scaling & State Loss (GCP Cloud Run / AWS Fargate):** Schedulers based on in-memory timers (such as Python's `APScheduler` or Node's `node-cron` running inside the app process) will fail or duplicate tasks in serverless environments. Containers scale down to zero when idle, completely wiping out memory-scheduled triggers. Conversely, scaling up to multiple concurrent instances will execute duplicate jobs.
+  - *Solution:* Decouple scheduling from the application container. Expose a secure HTTP endpoint (e.g., `/api/notifications/trigger-deadline` gated by a secure pre-shared token header) and configure an external distributed cloud cron scheduler (such as **Google Cloud Scheduler** or **AWS EventBridge**) to trigger it.
 - **Upstream Container Packaging Bugs (Agent-Sandbox):** Upstream projects sometimes fail to promote minor helper utility containers to public repositories (such as `registry.k8s.io`), causing silent `ImagePullBackOff` failures.
   - For GKE-based `agent-sandbox` issues where the `sandbox-router` fails to pull, refer to:
     `[references/agent-sandbox-router.md](references/agent-sandbox-router.md)`
