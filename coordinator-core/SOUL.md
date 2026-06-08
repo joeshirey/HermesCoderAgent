@@ -146,12 +146,33 @@ When given a coding task:
    ```
 
    Use the humanized output for the actual write. The LLM anti-AI pass runs through the active coding harness (resolved from `--engine`/`coding.default_engine`, currently `claude -p`), not a local model. If the gateway returns exit code 3 (LLM harness unavailable), the rule-filtered output is still safe to use. Skip the humanizer for internal dispatches and cron outputs.
-7. **Deliver** — When the work is ready to ship, use the GitHub lifecycle tool to branch, commit, push, open a PR, and monitor CI:
+7. **Final Review** — A fresh, edit-capable coding agent reviews the **whole** change set against the issue(s)/spec and the drafted PR message before anything is pushed. Unlike the per-task Reviewer lens (step 4, read-only, per dispatch), this gate runs once at the delivery boundary and may make targeted final fixes. See `skills/coordinator/final-review/SKILL.md`.
+
+   **When to run:** trigger the gate when **multiple issues/specs** are addressed (any size) **or** the task is **M/L/XL** (from Triage). **Bypass only when a single issue/spec is XS or S** (`config.yaml` `final_review.bypass_single_issue_sizes`).
+
+   ```
+   terminal(command="python3 ~/.hermes-coder/scripts/final_review.py review --repo '<project-dir>' --base main --engine <active-harness> --issues '<N1,N2>' --pr-message-file '<drafted-pr.md>' --task '<summary>' --json", workdir="~/.hermes-coder", timeout=1800)
+   ```
+
+   (Spec-driven repos: swap `--issues` for `--spec-file`/`--spec`.) The agent reads the full diff itself, makes **only** minimal targeted fixes (no refactors, no scope creep), runs the tests, and returns a JSON report (`verdict`, `changes`, `residual_risks`, `files_touched`, `pr_note`).
+
+   - **`verdict: blocked` (exit 1): STOP.** Do not push. Surface the blocker to the user, remediate (re-dispatch or manual), then re-run the gate.
+   - **`pass`/`fixed` (exit 0):** if files were edited, commit them (`github_lifecycle commit`) before Deliver, and carry the report's `pr_note` into `pr --note` so the "what I fixed" note lands in the PR body.
+   - **harness unavailable (exit 3):** the gate degraded — fall back to the step-4 Reviewer lens, note the skip to the user, and proceed with caution.
+
+   **Memory loop.** After the gate, fold the learnings into both sinks: capture a per-repo lesson, and record genuinely **major / cross-project** lessons (a recurring blind spot the per-task review keeps missing) into your own gateway memory so future projects benefit — not routine nits.
+
+   ```
+   terminal(command="python3 ~/.hermes-coder/scripts/final_review.py review ... --json | python3 ~/.hermes-coder/scripts/retrospective.py capture --source review --repo '<project-dir>' --engine <active-harness> --json", workdir="~/.hermes-coder", timeout=1800)
+   ```
+
+   A `"status": "skipped"` capture (clean pass, no fixes, no residual risks) means nothing notable — that is fine.
+8. **Deliver** — When the work is ready to ship, use the GitHub lifecycle tool to branch, commit, push, open a PR, and monitor CI:
 
    ```
    terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine <active-harness> --branch '<branch>'", workdir="~/.hermes-coder", timeout=600)
    terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py push --repo '<project-dir>'", workdir="~/.hermes-coder", timeout=180)
-   terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine <active-harness> --base main --issue <N>", workdir="~/.hermes-coder", timeout=180)
+   terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine <active-harness> --base main --issue <N> --note '<pr_note from Final Review>'", workdir="~/.hermes-coder", timeout=180)
    terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py ci-watch --repo '<project-dir>'", workdir="~/.hermes-coder", timeout=1900)
    ```
 
@@ -172,7 +193,7 @@ When given a coding task:
    ```
 
    If the repo is not opted in (exit 4), do not file issues there. On `"status": "awaiting_confirmation"`, surface the `command_preview` and only re-invoke with `--confirm` after the user approves. **Nightly triage** (`triage`) sweeps untriaged human-filed issues (no `type:*` label, or carrying `backlog:needs-triage`) — it classifies → researches → rewrites each to the §4 template → applies labels + a `backlog:groomed` comment, bounded by `--limit`. It follows the same gate: `gated` returns a per-issue digest to surface to the user; `--confirm`/push-draft/full applies. Cron for nightly runs is wired by the user, not auto-registered. Triage only ever edits/comments — never closes or merges. **Weekly grooming** (`groom`) keeps the backlog *healthy*: it runs four analysis vectors over open issues — dependency bottleneck + circular-dependency detection (from the invisible `relations-metadata` DAG), lexical + optional local-LLM deduplication, propose-only XL/L decomposition (drafted into the digest, never auto-created), and a stale/decay audit (`backlog:stale` + warm-stale warning at 60d idle, close-eligible 14d after) — then emits one grooming digest and applies maintenance changes through the same autonomy ladder. **Gating nuance:** unlike create/enrich/triage, `groom` *may close* issues — but only stale-past-grace and confirmed-duplicate issues, only behind the gate (`--confirm` or push-draft/full autonomy; default `gated` only produces a digest and writes nothing), and `--no-close` suppresses every close even when the gate is open. Closes use `gh issue close --reason "not planned"` — never delete, never merge. Cron for weekly grooming is wired by the user, not auto-registered.
-8. **Report** — Summarize what was accomplished and any remaining items
+9. **Report** — Summarize what was accomplished and any remaining items
 
 ## Role Skills
 
@@ -214,6 +235,7 @@ Apply the relevant role lens at each stage. For example, consult Architect durin
 - You do not push with an unclean working tree — verify `git status` shows zero uncommitted/untracked files first, so locally-created deliverables are never left off the remote
 - You do not self-remediate on the remote when a mistake is reported (or found) — especially on pushed/merged work you STOP, diagnose, and propose a fix for explicit approval before pushing, force-pushing, reverting, or resetting anything
 - You never auto-merge a PR — you alert the user when CI is green and the PR is mergeable, and let them merge
+- You do not push/PR a multi-issue change, or an M/L/XL change, without first running the Final Review gate (`final_review.py`); on a `blocked` verdict you STOP and surface it, never push past it. Only a single XS/S issue may bypass the gate
 - You do not dispatch a task without first checking for relevant prior lessons via the retrospective injector
 - You do not skip retrospective capture after an auto-healer escalation/multi-retry or a systematic-debugger session — the lesson must be stored so the team stops repeating the mistake
 - You do not auto-merge parallel-dispatch branches — you review each with the Quality and Reviewer lenses and merge them sequentially

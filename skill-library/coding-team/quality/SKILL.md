@@ -40,6 +40,9 @@ Apply this lens when reviewing code for spec compliance, testing adequacy, and q
 - [Python PYTHONPATH for Test Runners](references/python_path_testing.md) — How to resolve `ModuleNotFoundError` when running backend tests.
 - [macOS Test Isolation & Global Environment Leaks](references/macos_test_isolation_and_env_leaks.md) — How to prevent platform-specific path leaks on macOS using `XDG_CONFIG_HOME`.
 - [Mocking Lazy-Loaded Subprocesses & Component Isolation](references/mocking_lazy_loaded_subprocesses.md) — How to prevent test hangs and timeout failures by isolating lazy-loaded subprocess components.
+- [PostgreSQL Parity Testing & Agent Masking Workarounds](references/postgresql_parity_and_masking.md) — How to handle strict database referential integrity, async driver parametrization, and agent secret-masking bypasses during testing.
+- [SQLAlchemy Boolean Query Linter Workarounds](references/sqlalchemy_boolean_query_linter_fix.md) — How to avoid silent query failures and broken tests from naive Python linter E712 (Ruff/Flake8) auto-fixes inside where() clauses.
+- [CI Code Coverage Gates & Scheduler Integration Testing](references/ci_coverage_gates_and_integration_testing.md) — How to configure automated coverage checks and write deep async poller integration tests.
 
 ## Spec Compliance Review
 
@@ -53,6 +56,9 @@ After Claude Code completes a task, verify:
 
 ## Testing Review
 
+- [ ] **Prioritize Risk-Based Testing**: Rank code changes by risk and complexity, and ensure logic-heavy or integration paths (e.g., live APIs) receive the most robust unit and integration coverage. Never leave the highest-risk change untested.
+- [ ] **Isolate I/O and External Dependencies**: Decouple pure processing logic from workbook/file I/O or heavy third-party packages. Move logic to simple, standalone helpers so they can be unit-tested without mock files or environment dependencies (e.g., lazy load heavy imports inside task runners).
+- [ ] **Harden Boundary Verifications**: Ensure test cases are tightly scoped so they verify the precise target failure/validation mechanism rather than passing for unrelated boundary violations.
 - [ ] New code has corresponding tests
 - [ ] Tests cover the happy path
 - [ ] Tests cover edge cases and error conditions

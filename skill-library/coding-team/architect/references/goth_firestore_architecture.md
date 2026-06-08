@@ -20,21 +20,21 @@ Running these concurrently in a single foreground terminal target usually leaves
 .PHONY: watch-templ watch-tailwind watch-server dev
 
 watch-templ:
-	templ generate --watch
+ templ generate --watch
 
 watch-tailwind:
-	npx tailwindcss -i ./assets/css/input.css -o ./static/css/styles.css --watch
+ npx tailwindcss -i ./assets/css/input.css -o ./static/css/styles.css --watch
 
 watch-server:
-	air
+ air
 
 dev:
-	@echo "Starting GOTH development environment..."
-	@trap 'kill 0' INT TERM EXIT; \
-	make watch-templ & \
-	make watch-tailwind & \
-	make watch-server & \
-	wait
+ @echo "Starting GOTH development environment..."
+ @trap 'kill 0' INT TERM EXIT; \
+ make watch-templ & \
+ make watch-tailwind & \
+ make watch-server & \
+ wait
 ```
 
 *Key benefit:* Hitting `Ctrl+C` cleanly propagates the interrupt signal to all background jobs, preventing terminal locks or port binding conflicts.
@@ -53,22 +53,22 @@ Use `NewClientWithDatabase` to bind the client specifically to a custom-named da
 package db
 
 import (
-	"context"
-	"fmt"
-	"cloud.google.com/go/firestore"
+ "context"
+ "fmt"
+ "cloud.google.com/go/firestore"
 )
 
 type FirestoreRepository struct {
-	client *firestore.Client
+ client *firestore.Client
 }
 
 func NewFirestoreRepository(ctx context.Context, projectID, databaseID string) (*FirestoreRepository, error) {
-	// Securely binds to the named database
-	client, err := firestore.NewClientWithDatabase(ctx, projectID, databaseID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create firestore client: %w", err)
-	}
-	return &FirestoreRepository{client: client}, nil
+ // Securely binds to the named database
+ client, err := firestore.NewClientWithDatabase(ctx, projectID, databaseID)
+ if err != nil {
+  return nil, fmt.Errorf("failed to create firestore client: %w", err)
+ }
+ return &FirestoreRepository{client: client}, nil
 }
 ```
 
@@ -77,23 +77,23 @@ func NewFirestoreRepository(ctx context.Context, projectID, databaseID string) (
 To support local offline development without requiring active cloud credentials or dealing with Datastore Mode constraints, implement an in-memory `MockRepository` fallback in `main.go`:
 
 ```go
-	databaseID := os.Getenv("FIRESTORE_DATABASE")
-	if databaseID == "" {
-		databaseID = "restres"
-	}
+ databaseID := os.Getenv("FIRESTORE_DATABASE")
+ if databaseID == "" {
+  databaseID = "restres"
+ }
 
-	var repo db.ReservationRepository
-	var err error
-	if os.Getenv("USE_MOCK_DB") == "true" {
-		log.Println("Forcing fallback to MockRepository")
-		repo = db.NewMockRepository()
-	} else {
-		repo, err = db.NewFirestoreRepository(ctx, projectID, databaseID)
-		if err != nil {
-			log.Printf("Warning: Firestore failed, falling back to MockRepository: %v", err)
-			repo = db.NewMockRepository()
-		}
-	}
+ var repo db.ReservationRepository
+ var err error
+ if os.Getenv("USE_MOCK_DB") == "true" {
+  log.Println("Forcing fallback to MockRepository")
+  repo = db.NewMockRepository()
+ } else {
+  repo, err = db.NewFirestoreRepository(ctx, projectID, databaseID)
+  if err != nil {
+   log.Printf("Warning: Firestore failed, falling back to MockRepository: %v", err)
+   repo = db.NewMockRepository()
+  }
+ }
 ```
 
 ---

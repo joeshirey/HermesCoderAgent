@@ -61,6 +61,33 @@ When designing or updating automated cron jobs, background runners, or daily scr
 - **Handle No-Ops Gracefully:** If an automated job runs but determines that no action is required (e.g., no file changes found), output a single concise line (e.g., `No changes detected. Backup skipped.`) to avoid spamming the user with long empty logs or unnecessary text.
 - **Fail Verbosely:** On actual failures, let errors surface and output diagnostic details so the issue can be actively debugged.
 
+## Advanced CI/CD & Container Hardening Patterns
+
+### 1. Minimal-Image Container Healthchecks (Slim/Alpine Images)
+
+When hardening containers in multi-service configurations, healthchecks provide essential orchestration signals (enabling correct startup order). However, minimal base images (such as `python:slim` or `alpine`) often exclude `curl` or `wget`.
+
+- **Python-Slim Images:** Avoid adding unnecessary packages. Execute a standard library Python one-liner to perform HTTP checks:
+    `test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]`
+- **Nginx/Alpine Images:** Use the native busybox `wget` for quick HTML root verification:
+    `test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]`
+- **Dependency Gating:** Configure the reverse proxy/frontend port mapping to bind only to loopback (`127.0.0.1:<port>`) in development, and use `depends_on` to gate frontend boot on the API being healthy:
+
+    ```yaml
+    depends_on:
+      backend:
+        condition: service_healthy
+    ```
+
+### 2. Lint and Build Hygiene for Green CI Pipelines
+
+When introducing automated CI/CD checks (such as GitHub Actions) to existing legacy codebases, strict linter checks often fail on non-breaking files (e.g., pedantic style choices or unused imports).
+
+- **ESLint/TS Downgrades:** Rather than rewriting complex state management or component code under pressure, adjust `eslint.config.js` to treat styling, refresh, or context rules as `'warn'` instead of `'error'`. This allows build checking (`npm run build` targeting `tsc -b && vite build`) to act as the primary compile gate.
+- **Ruff Linter Suppressions:** When running Ruff checks on Python, include `--ignore E402` in the CI CLI invocation if standard files perform inline warnings/warnings suppressions before module imports. This prevents required order-suppressions from failing the pipeline.
+- **Ruff Monorepo/Subdirectory Working Directory:** If ruff is installed in a subdirectory virtual environment (e.g., `backend/.venv` via `uv sync --directory backend`), executing `uv run ruff check` at the repository root in CI will fail to find `ruff` with a "No such file or directory (os error 2)" error. Always configure the linter step to run with the correct `working-directory: <sub-folder>` (or specify `--directory <sub-folder>` in uv) to ensure it executes within the correct virtual environment context.
+- **NPM Registry Conflicts:** If package installation fails with E401 authentication errors on standard public packages, inspect `package-lock.json` for resolved URLs pointing to private Artifact Registries (e.g., `us-npm.pkg.dev` or Artifactory). Symmetrically replace private URLs with public npm registry equivalents (`https://registry.npmjs.org`) in the lockfile to unlock public builds.
+
 ## Common Pitfalls & Troubleshooting
 
 - **Serverless Scaling & State Loss (GCP Cloud Run / AWS Fargate):** Schedulers based on in-memory timers (such as Python's `APScheduler` or Node's `node-cron` running inside the app process) will fail or duplicate tasks in serverless environments. Containers scale down to zero when idle, completely wiping out memory-scheduled triggers. Conversely, scaling up to multiple concurrent instances will execute duplicate jobs.
@@ -70,3 +97,29 @@ When designing or updating automated cron jobs, background runners, or daily scr
     `[references/agent-sandbox-router.md](references/agent-sandbox-router.md)`
 - **GKE Autopilot & Gateway Ingress Troubleshooting:** Working with Autopilot constraints, global Gateway health check bootstrap failures, and Load Balancer warmups:
   - Refer to `[references/gke-autopilot-gateway-troubleshooting.md](references/gke-autopilot-gateway-troubleshooting.md)`
+
+### 3. Serverless Deploy-Time Smoke Testing (Cloud Build / Docker-in-Docker)
+
+When introducing pre-deployment container smoke tests in modern CI/CD pipelines (such as Google Cloud Build or equivalent Docker-in-Docker environments), we must navigate container network namespaces and filesystem write privileges:
+
+- **Cloud Build Shared Networking (The Localhost Pitfall):** Cloud Build steps execute inside isolated container runtimes running on a shared Docker network named `cloudbuild`. Background containers launched with `docker run -d` within a step are running as sibling containers on the same host. They **cannot** be accessed via `localhost` from other steps or within the same step. To enable communication, you must attach your background containers to the shared network using `--network cloudbuild` and address them directly by their container name (e.g. `http://test-backend:8000/api/health` and `http://test-frontend:8080/`).
+- **Unprivileged USER Write Permissions (The SQLite Crash):** Hardened, production-ready Docker images often run under an unprivileged user (such as `USER appuser`) for security compliance. If a smoke-test container boots up and attempts to create or write an in-memory or file-based SQLite database in the default application directory (e.g. `./smoke_test.db` in `/app`, which was populated by root during build), it will crash with `sqlite3.OperationalError: unable to open database file`. Point `DATABASE_URL` inside the smoke-test environment to a globally writable directory like `/tmp/smoke_test.db` (e.g. `sqlite:////tmp/smoke_test.db`) to ensure successful, permission-safe execution.
+
+### 4. Decoupled One-Shot Database Migrations (Cloud Run Jobs / Cloud Build)
+
+Running database migrations (such as `alembic upgrade head`) directly inside your application container's startup command (`CMD` or entrypoint) is a dangerous production anti-pattern. On Cloud Run (or any serverless platform), scale-ups, cold starts, and multi-instance scaling events will launch multiple concurrent containers, causing migration races, table locking, or database connection pool exhaustion.
+
+- **Uvicorn-Only Startup:** Remove all migration commands from the container's startup command, configuring it strictly to execute the web server (e.g., `uvicorn app.main:app`).
+- **Deploy-Time Cloud Run Jobs:** Configure a dedicated Google Cloud Build step that deploys and executes a one-shot Cloud Run Job (e.g., `gcloud run jobs deploy migrate-job --execute-now --wait`) *before* the application's service replacement step. This ensures that:
+  - Database upgrades run sequentially and isolated from active traffic.
+  - Successful database migration is a **hard gate**—the build blocks and fails immediately if migrations fail, protecting your production environment from running new application code against a stale database schema.
+  - The migration job is run against the newly built image tag (e.g., `:$SHORT_SHA`), guaranteeing that migration definitions perfectly match the application revision.
+  - **Symmetric Secret Bindings for App Configurations (The Pydantic Startup Crash):** If your application settings (such as Pydantic Settings) run strict validation guards on startup (such as checking that production secrets like `JWT_SECRET_KEY` are changed from their default values when running against a production database dialect), executing Alembic commands inside the container will trigger those validation checks. If those secrets are missing from the job context, the container will immediately exit with a `ValidationError` / `exit(1)` before migrations even start. Always bind all necessary production secrets symmetrically (`--set-secrets=...`) to the migration job's environment context.
+  - *Case Study Reference:* For a complete diagnostic and resolution breakdown of this exact Pydantic ValidationError crash under Cloud Run Job migrations, see: `[references/cloudbuild-migrate-jwt-secret-validation.md](references/cloudbuild-migrate-jwt-secret-validation.md)`.
+
+### 5. Least-Privilege Container Database Routing
+
+Avoid using database superuser credentials (such as the default `postgres` role) inside container environment connections.
+
+- **Dynamic Connection String Construction:** Refactor your container's startup command and configurations to dynamically assemble the `DATABASE_URL` from separate environmental inputs: `postgresql://${DB_USER:-postgres}:${DB_PASSWORD} @ /${DB_NAME:-fantasygolf}?host=${DB_SOCKET_DIR}`. This maintains seamless local/development backward-compatibility (falling back safely to standard defaults) while unlocking custom database credentials in production.
+- **Service Configuration Segregation:** Supply explicit, unprivileged `DB_USER` and `DB_NAME` values (such as `fantasygolf`) in your service specification YAML files, restricting connection privileges purely to the schema operations required by the runtime application.

@@ -719,6 +719,21 @@ def cmd_push(args, repo: str) -> tuple:
     return ActionResult("done", "push", details=f"pushed {branch} to origin"), 0
 
 
+def _read_note(args) -> str:
+    """Read the optional final-review note from --note or --note-file. The text is
+    already humanized prose from the review agent, so it is appended verbatim."""
+    note = (getattr(args, "note", None) or "").strip()
+    if note:
+        return note
+    note_file = getattr(args, "note_file", None)
+    if note_file:
+        try:
+            return Path(note_file).read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+    return ""
+
+
 def cmd_pr(args, repo: str) -> tuple:
     err = _preflight(repo, need_remote=True, need_gh=True)
     if err:
@@ -729,6 +744,12 @@ def cmd_pr(args, repo: str) -> tuple:
     title = args.title or _pr_title(repo, base)
     body = _draft_pr_body(repo, args.engine, base)
     body = _humanize_text(body, "pr", repo) if body else ""
+    # Append the final-review "what I fixed" note (already humanized by the review
+    # agent) under its own heading, before the closing keyword.
+    note = _read_note(args)
+    if note:
+        section = f"### Final review fixes\n\n{note}"
+        body = f"{body.rstrip()}\n\n{section}" if body.strip() else section
     # Link the issue so GitHub closes it when the human merges (we never auto-merge).
     issue = _resolve_issue_number(args, repo)
     body = _append_closing_keyword(body, issue)
@@ -739,6 +760,7 @@ def cmd_pr(args, repo: str) -> tuple:
         f"gh pr create --base {base} --title '{title}'"
         f"{' --draft' if draft else ''} --body-file <generated>"
         f"{f' (body: Closes #{issue})' if issue else ''}"
+        f"{' (+ final-review note)' if note else ''}"
     )
 
     if autonomy == "gated" and not args.confirm:
@@ -906,6 +928,11 @@ def main():
                       help="Confirm PR creation when autonomy is gated")
     p_pr.add_argument("--ready", action="store_true",
                       help="Open as ready-for-review (only honored at autonomy=full)")
+    p_pr.add_argument("--note", default=None,
+                      help="Final-review fixes note appended to the PR body under a "
+                           "'### Final review fixes' heading (already-humanized prose)")
+    p_pr.add_argument("--note-file", default=None,
+                      help="Path to a file whose contents are used as --note")
     p_pr.add_argument("--issue", type=int, default=None,
                       help="Issue number this PR resolves; adds 'Closes #N' to the body so "
                            "GitHub closes it on merge (default: inferred from branch name)")

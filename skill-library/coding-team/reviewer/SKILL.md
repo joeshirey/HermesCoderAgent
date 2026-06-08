@@ -38,20 +38,24 @@ Apply this lens for final code review, PR preparation, and synthesizing feedback
 
 ## Code Review Checklist
 
-### Correctness
+### Correctness & Logic Tracing
 
+- [ ] **Trace Code End-to-End**: Follow logic changes across all execution paths (e.g., ensuring a fix for live active games doesn't break final completed-tournament logic or run on unintended stages). Ask: "When else does this code execute?"
+- [ ] **Address All Known Gotchas**: Explicitly check the issue or specification for "Known Gotchas", warnings, or latent edge cases. Treat each as a strict requirement.
 - [ ] Code does what the spec says
 - [ ] Edge cases handled
 - [ ] Error handling appropriate (not over-engineered)
 
-### Readability
+### Readability & Documentation
 
+- [ ] **Update Documentation and Docstrings**: Verify that module-level docstrings, function comments, and API descriptions are fully updated to match new behavioral changes (e.g., if changing from a greedy solver to combinatorial, update the module docs).
 - [ ] Clear naming (variables, functions, classes)
 - [ ] Consistent style with existing codebase
 - [ ] No unnecessary complexity or abstraction
 
 ### Maintainability
 
+- [ ] **Uniform Return Contracts**: Ensure all function return paths return consistently structured, typed, and sorted collections across all branches.
 - [ ] DRY — no unnecessary duplication
 - [ ] YAGNI — no speculative features
 - [ ] Single responsibility — each function/class does one thing

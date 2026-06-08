@@ -7,7 +7,8 @@ engine has no memory between dispatches). This tool captures a concise lesson an
 stores it per-repo, then injects the relevant prior lessons into future dispatches.
 
 Subcommands:
-    capture  Extract + store a lesson from an auto-heal report or a debug journal.
+    capture  Extract + store a lesson from an auto-heal report, a debug journal,
+             or a final-review report.
     inject   Match stored lessons against a new task and emit a prompt snippet.
     list     Show the lessons stored for a repo.
 
@@ -324,6 +325,96 @@ def _capture_from_heal(repo: str, heal_file: Optional[str], task: str,
     ), exit_code, ""
 
 
+# -- Capture: final-review report source --
+
+def _capture_from_review(repo: str, review_file: Optional[str], task: str,
+                         engine: str) -> tuple[Optional[Lesson], int, str]:
+    """Capture a lesson from a final_review.py report (JSON via file/stdin).
+
+    The evidence is the review verdict, the targeted fixes the review agent made
+    (changes: what/why), and any residual risks it flagged. A clean pass with no
+    fixes and no residual risks is not notable and is skipped."""
+    try:
+        if not review_file or review_file == "-":
+            raw = sys.stdin.read()
+        else:
+            raw = Path(review_file).read_text(encoding="utf-8")
+    except OSError as e:
+        return None, 2, f"Could not read review report: {e}"
+    raw = raw.strip()
+    if not raw:
+        return None, 2, "Empty review report input"
+    try:
+        report = json.loads(raw)
+    except json.JSONDecodeError as e:
+        return None, 2, f"Review report is not valid JSON: {e}"
+
+    verdict = str(report.get("verdict", "")).strip().lower()
+    changes = report.get("changes") or []
+    residual = report.get("residual_risks") or []
+    report_task = task or report.get("task", "") or "final review"
+
+    # Gate: a clean pass with nothing fixed and nothing flagged is not worth a lesson.
+    if verdict == "pass" and not changes and not residual:
+        return None, 1, "Clean final review; nothing notable to capture"
+
+    if verdict == "blocked":
+        trigger = "review-blocked"
+    elif changes:
+        trigger = "review-fixed"
+    else:
+        trigger = "review-flagged"
+
+    change_lines = []
+    for c in changes[:8]:
+        if isinstance(c, dict):
+            what = str(c.get("what", "")).strip()
+            why = str(c.get("why", "")).strip()
+            change_lines.append(f"- {what}" + (f" (why: {why})" if why else ""))
+        else:
+            change_lines.append(f"- {str(c).strip()}")
+    risk_lines = [f"- {str(r).strip()}" for r in residual[:8]]
+
+    evidence_parts = [
+        f"Task: {report_task}",
+        f"Final-review verdict: {verdict or 'unknown'}",
+        ("Fixes the reviewer made:\n" + "\n".join(change_lines)) if change_lines else "",
+        ("Residual risks flagged:\n" + "\n".join(risk_lines)) if risk_lines else "",
+    ]
+    evidence = "\n".join(p for p in evidence_parts if p)
+
+    summary = _llm_summarize(evidence, engine)
+    exit_code = 0
+    if summary is None:
+        if trigger == "review-blocked":
+            rc = risk_lines[0][2:] if risk_lines else f"Final review blocked: {report_task}"
+            lesson_text = (
+                "The final-review gate blocked delivery -- a blocking defect slipped past "
+                "the per-task review. Re-check this class of issue before shipping next time."
+            )
+        elif trigger == "review-fixed":
+            rc = change_lines[0][2:] if change_lines else f"Final review made fixes: {report_task}"
+            lesson_text = (
+                "The final-review gate had to fix issues the per-task review missed; "
+                "watch for this pattern earlier in the next dispatch."
+            )
+        else:
+            rc = risk_lines[0][2:] if risk_lines else f"Final review flagged risks: {report_task}"
+            lesson_text = (
+                "The final-review gate flagged residual risks even though it passed; "
+                "consider addressing these proactively in similar work."
+            )
+        summary = {"root_cause": rc, "lesson": lesson_text}
+        exit_code = 3
+
+    sig = hashlib.sha256(
+        (verdict + "".join(change_lines) + "".join(risk_lines) + report_task).encode("utf-8")
+    ).hexdigest()[:8]
+    return _build_lesson(
+        repo, engine, trigger, report_task, summary, source_ref=f"review-{sig}"
+    ), exit_code, ""
+
+
 def _build_lesson(repo: str, engine: str, trigger: str, task: str,
                   summary: dict, source_ref: str) -> Lesson:
     root_cause = summary.get("root_cause", "")
@@ -405,6 +496,8 @@ def cmd_capture(args) -> int:
             _emit_error(args, "--bug-id is required for --source debug")
             return 2
         lesson, code, msg = _capture_from_debug(repo, args.bug_id, args.engine)
+    elif args.source == "review":
+        lesson, code, msg = _capture_from_review(repo, args.review_file, args.task, args.engine)
     else:  # heal
         if not args.task:
             _emit_error(args, "--task is required for --source heal")
@@ -494,9 +587,10 @@ def main():
 
     p_cap = sub.add_parser("capture", help="Capture a lesson from a heal report or debug journal")
     p_cap.add_argument("--repo", required=True)
-    p_cap.add_argument("--source", required=True, choices=["heal", "debug"])
+    p_cap.add_argument("--source", required=True, choices=["heal", "debug", "review"])
     p_cap.add_argument("--bug-id", help="Debug journal bug ID (for --source debug)")
     p_cap.add_argument("--heal-file", help="HealReport JSON path; '-' or omit = stdin (for --source heal)")
+    p_cap.add_argument("--review-file", help="final_review report JSON path; '-' or omit = stdin (for --source review)")
     p_cap.add_argument("--task", help="Task description (required for --source heal)")
     p_cap.add_argument("--engine", default="", choices=["", "claude-code", "antigravity", "opencode"],
                        help="Coding harness for the LLM summary (default: config coding.default_engine)")

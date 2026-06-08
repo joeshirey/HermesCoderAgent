@@ -173,6 +173,13 @@ This tool calls `humanizer_gateway.humanize()` internally for commit (`commit`) 
   2. **Linearize Your New Migration**: Open your newly created migration file and update its `down_revision` variable to point to the newly merged migration ID (the latest one from `main`) instead of the common ancestor. This linearizes the graph, making the upstream migration run first, followed by your new migration.
   3. **Non-Interactive Rebase Continue**: When running `git rebase --continue`, prepend `env GIT_EDITOR=true` (or equivalent) to allow Git to commit and complete the rebase automatically without freezing or hanging on interactive terminal editor prompts.
 
+### Line-Ending Auto-Conversion Blocking clean-tree Guards (CRLF/LF)
+
+- **The Issue**: On macOS and Windows hosts, running tests, syncing templates, or merging upstream changes can trigger Git to auto-convert line endings (CRLF $\leftrightarrow$ LF). This leaves one or more files perpetually "modified" in your working copy, which hard-blocks subsequent branch switching or remote pushes through the clean-tree safety check (`status: "blocked"`, `Working tree is not clean`). Even stashing (`git stash push -u`) may immediately reproduce the modification on checkout/read.
+- **The Solution**:
+  1. **Stage and Commit Directly**: Instead of fighting the automatic conversion with hard resets or force checkouts, stage and commit the line-ending normalizations directly (`git add <file> && git commit -m "chore(git): normalize line endings"`). This integrates the line-ending changes cleanly and returns the working tree to a perfectly clean status.
+  2. **Never Attempt Force Resets**: Avoid running destructive `git reset --hard` commands if safety filters or approvals are active, as they will be blocked by non-interactive environment hooks. Commitment is always the safest path to a clean tree.
+
 ### The Staging-Commit Verification Gap
 
 When coordinating multi-stage coding tasks (where some steps write configuration files, deployment scripts, or documentation), some intermediate tasks might not be automatically staged or committed.

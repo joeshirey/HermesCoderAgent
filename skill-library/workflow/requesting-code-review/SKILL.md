@@ -26,6 +26,24 @@ Automated verification pipeline before code lands. Static scans, baseline-aware 
 
 **Skip for:** documentation-only changes, pure config tweaks, or when user says "skip verification".
 
+## Core Verification Principles
+
+### 1. Never Verify Your Own Work Exclusively (Fresh Context)
+
+Local unit and integration tests are essential, but they often execute within mock conditions that you designed, which can mask conceptual defects. Always subject complex or logic-heavy changes (such as authentication updates, live pollers, or rules hardening) to an independent, fresh-context code review pass to find hidden gaps like:
+
+- **Unsafe Logic Fallbacks:** Check if default fallback values or unauthenticated requests accidentally inherit high-privilege roles (like defaulting a bypass to `admin` instead of `user`).
+- **Weak Environmental Guards:** Check if local-only dev utilities (like bypasses or seeding scripts) are gated solely on `debug` mode. Ensure they are multi-gated using local-only signatures (such as `settings.is_sqlite and settings.debug`) to physically lock them out of production-grade contexts.
+
+### 2. Trace the Fix End-to-End (Source to Sink)
+
+Before declaring a feature or bug fix complete, trace the entire data flow from where it is produced (Source) to where it is consumed or stored (Sink). Ask yourself:
+
+- *How does this code behave across all execution paths?* (e.g. Does a live-leaderboard fix inadvertently run or modify data during the authoritative final-results path?)
+- *Are all database-level referential integrity and foreign-key constraints met?* SQLite may let invalid foreign key references (such as seeding an invitation with a nonexistent user ID) slide by default, whereas real database engines (PostgreSQL) will strictly reject them and fail. Always seed valid parent records first.
+
+---
+
 ## Step 1 — Get the diff
 
 ```bash
