@@ -123,3 +123,16 @@ Avoid using database superuser credentials (such as the default `postgres` role)
 
 - **Dynamic Connection String Construction:** Refactor your container's startup command and configurations to dynamically assemble the `DATABASE_URL` from separate environmental inputs: `postgresql://${DB_USER:-postgres}:${DB_PASSWORD} @ /${DB_NAME:-fantasygolf}?host=${DB_SOCKET_DIR}`. This maintains seamless local/development backward-compatibility (falling back safely to standard defaults) while unlocking custom database credentials in production.
 - **Service Configuration Segregation:** Supply explicit, unprivileged `DB_USER` and `DB_NAME` values (such as `fantasygolf`) in your service specification YAML files, restricting connection privileges purely to the schema operations required by the runtime application.
+
+### 6. Fork Isolation for Deployments & Registry Publications (OIDC / Secrets Guard)
+
+In open-source or shared repositories with active personal forks, release, deployment, or package-publishing workflows (such as publishing to NuGet, npm, or PyPI) will frequently execute on forks (e.g. on branches pushed to the fork's development branch). Because forks do not inherit OIDC trusted publishing configurations, repository variables, or secrets, these workflows will crash and create false-alarm failure alerts on the fork.
+
+- **Upstream Repository Guarding:** Always add an explicit repository-gated `if` constraint to the publish or deploy job definition in GitHub Actions:
+  ```yaml
+  jobs:
+    publish:
+      if: github.repository == 'bradygaster/squad' # Replace with canonical upstream owner/repo
+      runs-on: ubuntu-latest
+  ```
+- **Silent Skip:** This allows the pipeline to bypass the publishing or deployment steps gracefully when running under a fork's namespace, keeping the forks' actions tab clean of unnecessary false failures.

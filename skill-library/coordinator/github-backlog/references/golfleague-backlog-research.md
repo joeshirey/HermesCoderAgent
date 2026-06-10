@@ -66,3 +66,39 @@ This reference document contains the detailed codebase context, impacted files, 
 
 - **Impacted Files:** All `Dockerfile` configurations.
 - **Pattern:** Base images are pinned by loose semantic tags rather than secure SHA digests, making builds non-deterministic over time. Update to use explicit SHA-256 digests.
+
+---
+
+## 4. Security, Concurrency & Fair Play (June 2026 Update)
+
+During the June 2026 backlog grooming review, several critical, high-impact issues were identified and grouped into high-leverage implementation bundles:
+
+### A. League Integrity & Fairness Exploits (Bundle 1)
+
+- **Pre-lock Pick Leak — Issue #94:**
+  - **Context:** The tournament leaderboard API endpoint is currently vulnerable to a competitive leak where players can view other players' active rosters and pick selections *before* the tournament picks lock. This allows a late-moving player to spy on everyone's strategy right before the deadline.
+  - **Remediation:** Modify the API response serialization (likely inside the tournament/leaderboard service) to restrict player roster detail payloads, making them available only *after* the tournament's scheduled lock time.
+- **Concurrent Pick Submission Roster Cap Race — Issue #101:**
+  - **Context:** Users can potentially double-submit picks concurrently to bypass budget or roster salary limits. If multiple identical API requests hit the backend simultaneously, the validation logic may read stale roster values before both transactions write, allowing an invalid roster to bypass the value cap checks.
+  - **Remediation:** Enforce database-level serializability, a check constraint, or use explicit transaction locks (e.g., PostgreSQL row locks or advisory locks) inside the pick submission route.
+
+### B. Poller Concurrency & Database Connection Reliability (Bundle 2)
+
+- **ESPN Poller Concurrency advisory locks — Issue #100:**
+  - **Context:** When running in serverless environments like Google Cloud Run, multiple active instances can spin up and execute the background ESPN polling loop concurrently. This results in duplicate API calls to ESPN and race conditions/write conflicts when writing leaderboard scores.
+  - **Remediation:** Implement explicit PostgreSQL advisory locks inside the polling cron job wrapper to guarantee that only a single active container instance can hold the poller lease at a time.
+- **Database Connection Pool Hardening — Issue #98:**
+  - **Context:** Serverless backend instances experience intermittent connection timeouts (500 errors) when connecting to Google Cloud SQL because idle database connections are dropped by GCP's firewall or SQLAlchemy's internal pool becomes stale.
+  - **Remediation:** Standardize pool configuration in SQLAlchemy: enable `pool_pre_ping=True`, set `pool_recycle=1800` (to recycle connections before the 15-minute firewall idle timeout), and size pools appropriately for serverless concurrency.
+- **ESPN Poller: Decimal vs Float Comparison — Issue #99:**
+  - **Context:** The ESPN poller fails to back off scoring checks because numerical comparisons between decimals (from the database) and floats (from the ESPN JSON API) prevent clean equivalence checks, forcing unnecessary poller database updates.
+  - **Remediation:** Cast values to a consistent type (such as standardizing on float or parsing API results directly into SQLAlchemy `Numeric(asdecimal=True)`-compatible decimals) during changed-state checks.
+
+### C. Authentication and Session Hardening (Bundle 3)
+
+- **Dev Admin Auth Bypass Vulnerability — Issue #96:**
+  - **Context:** The app's developmental admin login bypass mechanism relies on environment configurations. A single misconfigured or leaked environment variable could accidentally expose the bypass backdoor in a production deployment.
+  - **Remediation:** Restructure the authentication services so that the bypass path is hard-disabled at compile/runtime if the execution environment is anything other than `local`/`development`.
+- **Logout Cache Leak — Issue #97:**
+  - **Context:** In shared device setups (e.g. users logging into the golf pool at a clubhouse), logging out of the application fails to invalidate the frontend React Query cache, meaning a subsequent user can view stale cache-leaked rosters or profiles of the prior user.
+  - **Remediation:** Explicitly call `queryClient.clear()` on logout within the authentication/session hook layer to purge all user-scoped data.

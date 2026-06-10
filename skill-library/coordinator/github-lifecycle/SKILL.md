@@ -155,6 +155,7 @@ JSON output (`--json`):
 
 ## Safety and Hygiene
 
+- **Strict Fork Targeting Rule:** When working inside a fork (such as `you/squad`), never push or submit Pull Requests directly to the upstream repository (such as `bradygaster/squad`) under any circumstance without explicit user instructions. When creating a PR via the GitHub CLI, explicitly target the fork repository using `--repo <owner>/<repo>` (e.g. `gh pr create --repo you/squad`) to ensure the PR is created on the fork and does not go upstream.
 - **Strict Rule:** Never, under any circumstance, push code directly to the `main` or `master` branch. Always checkout a feature branch, commit, push, and open a Pull Request. Any merging into `main` must be performed solely by the user or with explicit prior permission.
 - Always use the humanizer gateway to polish PR/commit descriptions before delivery.
 - Respect the project's autonomy level and never bypass confirmation gates when in `gated` mode.
