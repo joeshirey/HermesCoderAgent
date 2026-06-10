@@ -175,6 +175,6 @@ terminal(
 - No system prompt injection — all context must go in the prompt
 - Timeouts use Go duration format (`5m0s`) not seconds
 
-## Linked Files
+## Monorepo Review Dispatch Pattern
 
-- [references/race_condition_review.md](references/race_condition_review.md) — Case study and dispatcher patterns for conducting comprehensive monorepo reviews using Antigravity, including the user's preferred backlog evaluation structure (Impact, Effort, Risk) and backlog consolidation conventions.
+For a high-level review of a complex multi-language monorepo, dispatch one comprehensive, read-only `agy -p` analysis task that explicitly scopes every sub-component (each language layer, infra, frontends) and asks for findings evaluated by **Impact, Level of Effort, and Risk**, consolidated into the repo's existing backlog format. Project-specific review case studies live in the reviewed project's own repo under `docs/hermes/`.

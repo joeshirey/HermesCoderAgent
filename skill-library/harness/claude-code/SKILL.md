@@ -15,10 +15,12 @@ Dispatch patterns for using Claude Code (`claude -p`) as the coding engine.
 ## One-Shot Command
 
 ```
-claude -p '<prompt>'
+claude -p '<prompt>' --model claude-fable-5
 ```
 
 Claude Code print mode runs a single prompt non-interactively and returns the result. It uses Vertex AI authentication on this machine — no API key needed in the command.
+
+**Model:** always pass `--model claude-fable-5` on claude-code dispatches. The canonical value lives in `config.yaml` under `coding.claude_model` (the coordinator scripts read it from there automatically); keep these templates in sync with it.
 
 ## Dispatch Templates
 
@@ -26,7 +28,7 @@ Claude Code print mode runs a single prompt non-interactively and returns the re
 
 ```
 terminal(
-    command="claude -p '<self-contained task prompt>' --allowedTools 'Read,Edit,Write,Bash' --max-turns 15",
+    command="claude -p '<self-contained task prompt>' --allowedTools 'Read,Edit,Write,Bash' --max-turns 15 --model claude-fable-5",
     workdir="<project-dir>",
     timeout=300
 )
@@ -36,7 +38,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p 'In <file>, update <function> to <change>. Run existing tests to verify.' --allowedTools 'Read,Edit,Bash' --max-turns 10",
+    command="claude -p 'In <file>, update <function> to <change>. Run existing tests to verify.' --allowedTools 'Read,Edit,Bash' --max-turns 10 --model claude-fable-5",
     workdir="<project-dir>",
     timeout=120
 )
@@ -46,7 +48,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p 'Implement <feature> as described: <spec>. Create files in <location>. Write tests in <test-location>. Follow existing patterns in <example-file>.' --allowedTools 'Read,Edit,Write,Bash' --max-turns 20",
+    command="claude -p 'Implement <feature> as described: <spec>. Create files in <location>. Write tests in <test-location>. Follow existing patterns in <example-file>.' --allowedTools 'Read,Edit,Write,Bash' --max-turns 20 --model claude-fable-5",
     workdir="<project-dir>",
     timeout=300
 )
@@ -56,7 +58,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p 'Fix bug: <description>. Reproduce with: <repro-steps>. Root cause is likely in <file>. Add a regression test.' --allowedTools 'Read,Edit,Bash' --max-turns 15",
+    command="claude -p 'Fix bug: <description>. Reproduce with: <repro-steps>. Root cause is likely in <file>. Add a regression test.' --allowedTools 'Read,Edit,Bash' --max-turns 15 --model claude-fable-5",
     workdir="<project-dir>",
     timeout=180
 )
@@ -66,7 +68,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p 'Refactor <component>: <goal>. Preserve all existing behavior. Run tests after each change.' --allowedTools 'Read,Edit,Bash' --max-turns 20",
+    command="claude -p 'Refactor <component>: <goal>. Preserve all existing behavior. Run tests after each change.' --allowedTools 'Read,Edit,Bash' --max-turns 20 --model claude-fable-5",
     workdir="<project-dir>",
     timeout=300
 )
@@ -76,7 +78,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p '<review prompt>' --allowedTools 'Read,Bash' --max-turns 10",
+    command="claude -p '<review prompt>' --allowedTools 'Read,Bash' --max-turns 10 --model claude-fable-5",
     workdir="<project-dir>",
     timeout=120
 )
@@ -93,7 +95,7 @@ LOGIC (auto-FAIL): wrong conditionals, missing error handling for I/O, off-by-on
 SUGGESTIONS (non-blocking): missing tests, style, performance, naming.
 
 Run: git diff HEAD~1 HEAD
-Report: list security concerns, logic errors, and suggestions.' --allowedTools 'Read,Bash' --max-turns 10",
+Report: list security concerns, logic errors, and suggestions.' --allowedTools 'Read,Bash' --max-turns 10 --model claude-fable-5",
     workdir="<project-dir>",
     timeout=120
 )
@@ -105,7 +107,7 @@ Report: list security concerns, logic errors, and suggestions.' --allowedTools '
 terminal(
     command="claude -p 'Fix ONLY these specific issues. Do NOT refactor or change anything else:
 <list of issues>
-' --allowedTools 'Read,Edit,Bash' --max-turns 10",
+' --allowedTools 'Read,Edit,Bash' --max-turns 10 --model claude-fable-5",
     workdir="<project-dir>",
     timeout=120
 )
@@ -117,6 +119,7 @@ terminal(
 |------|---------|-------------|
 | `--allowedTools` | Restrict which tools Claude Code can use | Always — limit scope per task |
 | `--max-turns` | Cap iterations to prevent runaway tasks | Always — default 15, lower for simple tasks |
+| `--model` | Pin the model for the dispatch | Always — `claude-fable-5` (config `coding.claude_model`) |
 | `--dangerously-skip-permissions` | Auto-approve all tool use | When running unattended via coordinator |
 | `--append-system-prompt` | Inject additional system context | When adding tech-specific guidance |
 

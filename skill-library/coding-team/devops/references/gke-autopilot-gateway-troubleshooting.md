@@ -69,7 +69,7 @@ apiVersion: networking.gke.io/v1
 kind: HealthCheckPolicy
 metadata:
   name: backend-health-check
-  namespace: hackathon-judge
+  namespace: <app-namespace>
 spec:
   default:
     config:

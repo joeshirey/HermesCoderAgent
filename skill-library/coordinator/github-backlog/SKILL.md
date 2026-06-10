@@ -312,5 +312,4 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
 
 ## Repository Research Notes & References
 
-- **Golf League Backlog Research**: See [references/golfleague-backlog-research.md](references/golfleague-backlog-research.md) for concrete file paths, architectural patterns, and known PostgreSQL/Alembic pitfalls discovered during the `golfleague` triage sessions.
-- **College Football Pool Backlog Research**: See [references/collegefbpool-backlog-research.md](references/collegefbpool-backlog-research.md) for concrete file paths, schema details, native Google GenAI integrations, and custom bonus outcomes mapped out during the `CollegeFBPool` sessions.
+Per-repo backlog research (file paths, schema details, architectural pitfalls discovered during triage) is **project memory** and lives in each repo at `docs/hermes/backlog-research.md`, linked from that repo's `AGENTS.md`. Consult it when triaging or grooming that repo's backlog; write new research findings there, not into this skill.

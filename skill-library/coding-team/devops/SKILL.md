@@ -121,8 +121,8 @@ Running database migrations (such as `alembic upgrade head`) directly inside you
 
 Avoid using database superuser credentials (such as the default `postgres` role) inside container environment connections.
 
-- **Dynamic Connection String Construction:** Refactor your container's startup command and configurations to dynamically assemble the `DATABASE_URL` from separate environmental inputs: `postgresql://${DB_USER:-postgres}:${DB_PASSWORD} @ /${DB_NAME:-fantasygolf}?host=${DB_SOCKET_DIR}`. This maintains seamless local/development backward-compatibility (falling back safely to standard defaults) while unlocking custom database credentials in production.
-- **Service Configuration Segregation:** Supply explicit, unprivileged `DB_USER` and `DB_NAME` values (such as `fantasygolf`) in your service specification YAML files, restricting connection privileges purely to the schema operations required by the runtime application.
+- **Dynamic Connection String Construction:** Refactor your container's startup command and configurations to dynamically assemble the `DATABASE_URL` from separate environmental inputs: `postgresql://${DB_USER:-postgres}:${DB_PASSWORD} @ /${DB_NAME:-app_db}?host=${DB_SOCKET_DIR}`. This maintains seamless local/development backward-compatibility (falling back safely to standard defaults) while unlocking custom database credentials in production.
+- **Service Configuration Segregation:** Supply explicit, unprivileged `DB_USER` and `DB_NAME` values (such as `app_db`) in your service specification YAML files, restricting connection privileges purely to the schema operations required by the runtime application.
 
 ### 6. Fork Isolation for Deployments & Registry Publications (OIDC / Secrets Guard)
 

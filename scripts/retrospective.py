@@ -11,6 +11,8 @@ Subcommands:
              or a final-review report.
     inject   Match stored lessons against a new task and emit a prompt snippet.
     list     Show the lessons stored for a repo.
+    sweep    Generalize the store: merge clusters of similar lessons into one
+             principle-level lesson each, archive the originals, cap the store.
 
 Usage:
     # capture from a debug journal (.hermes-debug/<bug-id>.json):
@@ -54,7 +56,10 @@ from harness_llm import harness_generate, strip_fences, HarnessUnavailable
 
 DEFAULT_MAX_INJECT = 3
 DEFAULT_MATCH_THRESHOLD = 0.05
+DEFAULT_MAX_LESSONS = 30
+DEFAULT_SWEEP_SIMILARITY = 0.25
 STORE_DIRNAME = ".hermes-lessons"
+ARCHIVE_DIRNAME = ".archive"
 DEBUG_DIRNAME = ".hermes-debug"
 
 # Small stopword set so generic verbs don't inflate keyword overlap.
@@ -483,6 +488,155 @@ def build_snippet(matches: list[dict]) -> str:
     return "\n".join(lines)
 
 
+# -- Sweep: generalize and compact the lesson store --
+
+_GENERALIZE_SYSTEM_PROMPT = """You merge several similar software-engineering lessons into ONE general, reusable lesson.
+Strip incidental specifics (exact file paths, revision IDs, table/column names, project names) unless essential to the principle.
+Output STRICT JSON only, no markdown fencing:
+{"root_cause": "one sentence: the general class of problem", "lesson": "one actionable, principle-level sentence", "task": "a short generic label for when this applies"}"""
+
+
+def _jaccard(a: set, b: set) -> float:
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
+def _cluster_lessons(lessons: list, similarity: float) -> list:
+    """Greedy clustering by tag-set Jaccard similarity. Returns list of clusters
+    (each a list of Lessons); singletons included."""
+    clusters: list[list] = []
+    for lesson in lessons:
+        tags = set(lesson.tags)
+        placed = False
+        for cluster in clusters:
+            if any(_jaccard(tags, set(other.tags)) >= similarity for other in cluster):
+                cluster.append(lesson)
+                placed = True
+                break
+        if not placed:
+            clusters.append([lesson])
+    return clusters
+
+
+def _archive_lesson(lesson: Lesson) -> None:
+    store = _store_dir(lesson.repo)
+    archive = store / ARCHIVE_DIRNAME
+    archive.mkdir(parents=True, exist_ok=True)
+    src = store / f"{lesson.lesson_id}.json"
+    if src.exists():
+        src.rename(archive / src.name)
+
+
+def _merge_cluster(cluster: list, engine: str) -> tuple[Optional[Lesson], str]:
+    """LLM-merge a cluster into one generalized lesson. Returns (lesson, via)."""
+    repo = cluster[0].repo
+    evidence = "\n\n".join(
+        f"Lesson {i+1}:\n  task: {l.task}\n  root cause: {l.root_cause}\n  lesson: {l.lesson}"
+        for i, l in enumerate(cluster)
+    )
+    summary = _llm_summarize_general(evidence, engine)
+    if summary is None:
+        return None, "harness_unavailable"
+    merged = Lesson(
+        lesson_id=str(uuid.uuid4())[:8],
+        created=datetime.now(timezone.utc).isoformat(),
+        repo=repo,
+        engine=engine,
+        trigger="sweep-merged",
+        task=summary.get("task") or cluster[0].task,
+        root_cause=summary.get("root_cause", ""),
+        lesson=summary.get("lesson", ""),
+        tags=sorted(set().union(*(set(l.tags) for l in cluster))),
+        source_ref="+".join(sorted(l.lesson_id for l in cluster)),
+        dedupe_key=_dedupe_key("sweep-merged", "+".join(sorted(l.lesson_id for l in cluster))),
+    )
+    return merged, "llm"
+
+
+def _llm_summarize_general(evidence: str, engine: Optional[str]) -> Optional[dict]:
+    try:
+        raw = harness_generate(
+            evidence, engine=engine, system=_GENERALIZE_SYSTEM_PROMPT, timeout=120
+        )
+    except HarnessUnavailable:
+        return None
+    try:
+        parsed = json.loads(strip_fences(raw))
+        if parsed.get("lesson") or parsed.get("root_cause"):
+            return parsed
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    return None
+
+
+def cmd_sweep(args) -> int:
+    repo = os.path.abspath(args.repo)
+    if not os.path.isdir(repo):
+        _emit_error(args, f"Repository path does not exist: {repo}")
+        return 2
+
+    lessons = load_lessons(repo)
+    if not lessons:
+        result = {"status": "skipped", "reason": "no lessons stored"}
+        print(json.dumps(result, indent=2) if args.json else result["reason"])
+        return 0
+
+    clusters = _cluster_lessons(lessons, args.similarity)
+    merge_clusters = [c for c in clusters if len(c) >= 2]
+
+    proposals = []
+    harness_down = False
+    for cluster in merge_clusters:
+        if args.apply:
+            merged, via = _merge_cluster(cluster, args.engine)
+            if merged is None:
+                harness_down = True
+                proposals.append({
+                    "members": [l.lesson_id for l in cluster],
+                    "applied": False, "reason": "harness unavailable",
+                })
+                continue
+            for l in cluster:
+                _archive_lesson(l)
+            merged.save()
+            proposals.append({
+                "members": [l.lesson_id for l in cluster],
+                "merged_id": merged.lesson_id,
+                "lesson": merged.lesson,
+                "applied": True,
+            })
+        else:
+            proposals.append({
+                "members": [l.lesson_id for l in cluster],
+                "tasks": [l.task for l in cluster],
+                "applied": False,
+            })
+
+    # Cap: archive oldest beyond max (newest kept), after merging.
+    capped = []
+    if args.apply:
+        remaining = sorted(load_lessons(repo), key=lambda l: l.created, reverse=True)
+        for l in remaining[args.max_lessons:]:
+            _archive_lesson(l)
+            capped.append(l.lesson_id)
+
+    result = {
+        "status": "done" if (args.apply and not harness_down) else
+                  ("harness_unavailable" if harness_down else "proposed"),
+        "lessons_before": len(lessons),
+        "clusters_to_merge": len(merge_clusters),
+        "merges": proposals,
+        "archived_over_cap": capped,
+    }
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"sweep: {result['status']} — {len(merge_clusters)} cluster(s), "
+              f"{len(capped)} archived over cap")
+    return 3 if harness_down else 0
+
+
 # -- CLI handlers --
 
 def cmd_capture(args) -> int:
@@ -611,6 +765,19 @@ def main():
     p_list.add_argument("--repo", required=True)
     p_list.add_argument("--json", action="store_true")
     p_list.set_defaults(func=cmd_list)
+
+    p_sweep = sub.add_parser("sweep", help="Merge similar lessons into generalized ones; cap the store")
+    p_sweep.add_argument("--repo", required=True)
+    p_sweep.add_argument("--apply", action="store_true",
+                         help="Apply merges/archival (default: propose only)")
+    p_sweep.add_argument("--similarity", type=float, default=DEFAULT_SWEEP_SIMILARITY,
+                         help="Tag Jaccard similarity to cluster lessons (default 0.25)")
+    p_sweep.add_argument("--max-lessons", type=int, default=DEFAULT_MAX_LESSONS,
+                         help="Cap on stored lessons after sweep (default 30)")
+    p_sweep.add_argument("--engine", default="", choices=["", "claude-code", "antigravity", "opencode"],
+                         help="Coding harness for the merge summaries")
+    p_sweep.add_argument("--json", action="store_true")
+    p_sweep.set_defaults(func=cmd_sweep)
 
     args = parser.parse_args()
     sys.exit(args.func(args))

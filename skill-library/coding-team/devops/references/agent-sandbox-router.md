@@ -39,7 +39,7 @@ curl -sL https://raw.githubusercontent.com/kubernetes-sigs/agent-sandbox/v0.4.6/
 curl -sL https://raw.githubusercontent.com/kubernetes-sigs/agent-sandbox/v0.4.6/clients/python/agentic-sandbox-client/sandbox-router/sandbox_router.py -o sandbox_router.py
 
 # 3. Source environment variables to resolve active registry parameters
-cd ~/hackathon-judge
+cd ~/<project>
 source ./setup-env.sh
 
 # 4. Build and push the container to your project's Artifact Registry

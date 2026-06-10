@@ -48,13 +48,13 @@ Symmetrically map all required production secrets inside the `gcloud run jobs de
       - '-c'
       - |
         gcloud run jobs deploy migrate-job \
-          --image=us-central1-docker.pkg.dev/$PROJECT_ID/fantasy-golf/backend:$SHORT_SHA \
+          --image=us-central1-docker.pkg.dev/$PROJECT_ID/<app>/backend:$SHORT_SHA \
           --command="alembic" \
           --args="upgrade","head" \
           --region=${_REGION} \
-          --set-cloudsql-instances=your-gcp-project-id:us-central1:fantasy-golf-db \
+          --set-cloudsql-instances=$PROJECT_ID:us-central1:<app>-db \
           --set-secrets=DB_PASSWORD=db-password:latest,JWT_SECRET_KEY=jwt-secret-key:latest \
-          --set-env-vars=DB_SOCKET_DIR=/cloudsql/your-gcp-project-id:us-central1:fantasy-golf-db,DB_USER=fantasygolf,DB_NAME=fantasygolf \
+          --set-env-vars=DB_SOCKET_DIR=/cloudsql/$PROJECT_ID:us-central1:<app>-db,DB_USER=app_user,DB_NAME=app_db \
           --execute-now \
           --wait
 ```

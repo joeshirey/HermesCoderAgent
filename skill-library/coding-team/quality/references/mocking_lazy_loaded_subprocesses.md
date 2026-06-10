@@ -8,20 +8,20 @@ This reference details the "lazy-loaded process leak" pitfall, its diagnostic sy
 
 ## The Pitfall: Leaky Lazy-Loading Constructor Fallbacks
 
-To keep core package imports lightweight, constructors often lazy-load heavy external dependencies (such as `@github/copilot-sdk`) only when a pre-built provider isn't explicitly supplied:
+To keep core package imports lightweight, constructors often lazy-load heavy external dependencies (such as `@vendor/heavy-sdk`) only when a pre-built provider isn't explicitly supplied:
 
 ```typescript
 // Production Code: Pluggable provider with lazy fallback
-export class SquadClient {
-  private provider: SquadProvider;
+export class AgentClient {
+  private provider: AgentProvider;
 
-  constructor(options: SquadClientOptions = {}) {
+  constructor(options: AgentClientOptions = {}) {
     if (options.provider) {
       this.provider = options.provider;
     } else {
       // Lazy load standard provider if none is injected
-      const { CopilotProvider } = require('./providers/copilot-provider.js');
-      this.provider = new CopilotProvider(options);
+      const { DefaultVendorProvider } = require('./providers/copilot-provider.js');
+      this.provider = new DefaultVendorProvider(options);
     }
   }
 }
@@ -29,8 +29,8 @@ export class SquadClient {
 
 ### Why This Fails in Test Suites
 
-1. **Spawning Real Processes:** During testing, if a test instantiates `new SquadClient({ autoReconnect: false })` without passing a mock provider in the options, the constructor falls back to `CopilotProvider`, which attempts to start up and connect to a real background CLI command-line binary.
-2. **Missing Global Mocks:** If the test file does not globally stub out `vi.mock('@github/copilot-sdk')` or command-line execution, the test suite will block on real OS subprocess spawning or socket handshakes.
+1. **Spawning Real Processes:** During testing, if a test instantiates `new AgentClient({ autoReconnect: false })` without passing a mock provider in the options, the constructor falls back to `DefaultVendorProvider`, which attempts to start up and connect to a real background CLI command-line binary.
+2. **Missing Global Mocks:** If the test file does not globally stub out `vi.mock('@vendor/heavy-sdk')` or command-line execution, the test suite will block on real OS subprocess spawning or socket handshakes.
 3. **Severe Symptoms:**
    - The test hangs and eventually exits with: `Error: Test timed out in 5000ms.`
    - In environments without the real command-line binary installed (e.g., lightweight containerized runners or specific test hosts), the entire test runner crashes with `spawn ENOENT` errors.
@@ -48,7 +48,7 @@ Rather than relying on global stubs, inject a lightweight mock provider into eve
 ```typescript
 // Safe Test: Complete mock provider injection
 import { describe, it, expect, vi } from 'vitest';
-import { SquadClient } from '@bradygaster/squad-sdk/client';
+import { AgentClient } from '@example/agent-sdk/client';
 
 function createMockProvider() {
   const mocks = {
@@ -58,10 +58,10 @@ function createMockProvider() {
   return { name: 'mock-provider', ...mocks, _mocks: mocks };
 }
 
-describe('SquadClient', () => {
+describe('AgentClient', () => {
   it('should handle session creation errors gracefully', async () => {
     const mockProvider = createMockProvider();
-    const client = new SquadClient({ provider: mockProvider, autoReconnect: false });
+    const client = new AgentClient({ provider: mockProvider, autoReconnect: false });
     await client.connect();
 
     // Force error behavior locally and instantly
@@ -80,7 +80,7 @@ If you must test the lazy-loading path specifically (e.g., verifying that the fa
 import { vi } from 'vitest';
 
 // Safe Test: Stub the lazy-loaded module before any imports
-vi.mock('@github/copilot-sdk', () => {
+vi.mock('@vendor/heavy-sdk', () => {
   return {
     CopilotClient: vi.fn().mockImplementation(() => {
       return {

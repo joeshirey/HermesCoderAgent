@@ -33,6 +33,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    from harness_llm import resolve_claude_model
+except ImportError:
+    def resolve_claude_model() -> str:
+        return ""
+
 
 # -- Debug journal --
 
@@ -148,12 +155,14 @@ class DebugJournal:
 def _build_readonly_command(prompt: str, engine: str, repo: str) -> str:
     """Build a read-only dispatch command (no file editing allowed)."""
     escaped = prompt.replace("'", "'\\''")
+    model = resolve_claude_model()
+    model_flag = f" --model {model}" if model else ""
     if engine == "claude-code":
         return (
             f"claude -p '{escaped}' "
             f"--allowedTools 'Read,Bash' "
             f"--max-turns 15 "
-            f"--dangerously-skip-permissions"
+            f"--dangerously-skip-permissions{model_flag}"
         )
     elif engine == "antigravity":
         return (
@@ -175,19 +184,21 @@ def _build_readonly_command(prompt: str, engine: str, repo: str) -> str:
         f"claude -p '{escaped}' "
         f"--allowedTools 'Read,Bash' "
         f"--max-turns 15 "
-        f"--dangerously-skip-permissions"
+        f"--dangerously-skip-permissions{model_flag}"
     )
 
 
 def _build_test_write_command(prompt: str, engine: str, repo: str) -> str:
     """Build a command that allows writing test files only."""
     escaped = prompt.replace("'", "'\\''")
+    model = resolve_claude_model()
+    model_flag = f" --model {model}" if model else ""
     if engine == "claude-code":
         return (
             f"claude -p '{escaped}' "
             f"--allowedTools 'Read,Edit,Write,Bash' "
             f"--max-turns 15 "
-            f"--dangerously-skip-permissions"
+            f"--dangerously-skip-permissions{model_flag}"
         )
     elif engine == "antigravity":
         return (
@@ -207,7 +218,7 @@ def _build_test_write_command(prompt: str, engine: str, repo: str) -> str:
         f"claude -p '{escaped}' "
         f"--allowedTools 'Read,Edit,Write,Bash' "
         f"--max-turns 15 "
-        f"--dangerously-skip-permissions"
+        f"--dangerously-skip-permissions{model_flag}"
     )
 
 

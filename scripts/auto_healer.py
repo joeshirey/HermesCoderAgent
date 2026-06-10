@@ -27,6 +27,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    from harness_llm import resolve_claude_model
+except ImportError:
+    def resolve_claude_model() -> str:
+        return ""
+
 
 @dataclass
 class FailureTarget:
@@ -281,13 +288,15 @@ def build_dispatch_command(prompt: str, engine: str, repo: str,
                            max_turns: int = 10) -> str:
     """Build the CLI command for the active harness."""
     escaped = prompt.replace("'", "'\\''")
+    model = resolve_claude_model()
+    model_flag = f" --model {model}" if model else ""
 
     if engine == "claude-code":
         return (
             f"claude -p '{escaped}' "
             f"--allowedTools 'Read,Edit,Bash' "
             f"--max-turns {max_turns} "
-            f"--dangerously-skip-permissions"
+            f"--dangerously-skip-permissions{model_flag}"
         )
     elif engine == "antigravity":
         timeout_go = f"{max(max_turns * 30, 180)}s"
@@ -310,7 +319,7 @@ def build_dispatch_command(prompt: str, engine: str, repo: str,
             f"claude -p '{escaped}' "
             f"--allowedTools 'Read,Edit,Bash' "
             f"--max-turns {max_turns} "
-            f"--dangerously-skip-permissions"
+            f"--dangerously-skip-permissions{model_flag}"
         )
 
 

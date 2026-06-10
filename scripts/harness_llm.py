@@ -76,6 +76,12 @@ def resolve_engine(cli_engine: Optional[str] = None) -> str:
     return DEFAULT_ENGINE
 
 
+def resolve_claude_model() -> str:
+    """Model for claude-code dispatches (config `coding.claude_model`).
+    Empty string = let the claude CLI use its own default."""
+    return _read_coding_block().get("claude_model", "").strip()
+
+
 def _build_cmd(prompt: str, engine: str, repo: Optional[str]) -> list:
     """Build a list-form (no shell) command for a single text-in/text-out
     pass. No file-editing tools are granted; the prompt is self-contained."""
@@ -95,9 +101,13 @@ def _build_cmd(prompt: str, engine: str, repo: Optional[str]) -> list:
         return cmd
     # claude-code (default). --max-turns 2 is the hard safety valve; no
     # --allowedTools so it answers as plain text without wandering the FS.
-    return ["claude", "-p", prompt,
-            "--max-turns", "2",
-            "--dangerously-skip-permissions"]
+    cmd = ["claude", "-p", prompt,
+           "--max-turns", "2",
+           "--dangerously-skip-permissions"]
+    model = resolve_claude_model()
+    if model:
+        cmd += ["--model", model]
+    return cmd
 
 
 def harness_generate(

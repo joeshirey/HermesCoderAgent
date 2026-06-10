@@ -46,6 +46,11 @@ try:
     from humanizer_gateway import humanize
 except ImportError:
     humanize = None
+try:
+    from harness_llm import resolve_claude_model
+except ImportError:
+    def resolve_claude_model() -> str:
+        return ""
 
 
 AUTONOMY_LEVELS = ["gated", "push-draft", "full"]
@@ -234,12 +239,14 @@ def _working_tree_dirty(repo: str) -> Optional[str]:
 def build_readonly_dispatch(prompt: str, engine: str, repo: str) -> str:
     """Build a read-only dispatch command (drafting must not edit files)."""
     escaped = prompt.replace("'", "'\\''")
+    model = resolve_claude_model()
+    model_flag = f" --model {model}" if model else ""
     if engine == "claude-code":
         return (
             f"claude -p '{escaped}' "
             f"--allowedTools 'Read,Bash' "
             f"--max-turns 8 "
-            f"--dangerously-skip-permissions"
+            f"--dangerously-skip-permissions{model_flag}"
         )
     elif engine == "antigravity":
         return (
@@ -260,7 +267,7 @@ def build_readonly_dispatch(prompt: str, engine: str, repo: str) -> str:
         f"claude -p '{escaped}' "
         f"--allowedTools 'Read,Bash' "
         f"--max-turns 8 "
-        f"--dangerously-skip-permissions"
+        f"--dangerously-skip-permissions{model_flag}"
     )
 
 

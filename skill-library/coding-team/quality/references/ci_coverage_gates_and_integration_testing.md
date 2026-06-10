@@ -86,11 +86,11 @@ Testing deep asynchronous polling loops (`run_poll_cycle()`) that execute transa
 
 ### 🧪 Integration Testing Recipe
 
-When testing a polling cycle that triggers external network fetches (such as ESPN API calls) and acts on completion to auto-finalize standings:
+When testing a polling cycle that triggers external network fetches (such as external provider API calls) and acts on completion to auto-finalize standings:
 
 1. **Bind Session Factories:** If the poller opens independent database sessions via a global `async_session_factory()`, override or rebind that session maker to the test `db_engine` in your test fixture. When testing on an in-memory SQLite `StaticPool`, binding both the poller session maker and the test thread's `db_session` to the same engine guarantees they see the same data in real-time.
 2. **Mock Clock & Hour Gates:** Mock timezone-dependent play hours filters (`is_during_tournament_hours`) to return `True` to allow execution under the test clock.
-3. **Simulate Sequence of API Responses:** Mock external network clients (`espn_client`) to simulate:
+3. **Simulate Sequence of API Responses:** Mock external network clients (`provider_client`) to simulate:
    - *Active Round State:* Returns an in-progress round status (`status_completed = False`) to verify that the poller upserts results but does not touch scoring finalizations.
    - *Final Completed State:* Returns a completed round status (`STATUS_FINAL`, `status_completed = True`) to verify that completion is detected, scoring engines auto-finalize player rosters, and overall season standings are updated with the correct aggregate results.
 
@@ -101,7 +101,7 @@ When testing a polling cycle that triggers external network fetches (such as ESP
 async def _bind_poller_session_factory(db_engine, monkeypatch):
     """Binds background session factory to test engine so poller sees test data."""
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-    import app.services.espn_poller as poller_module
+    import app.services.provider_poller as poller_module
 
     test_factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(poller_module, "async_session_factory", test_factory)
@@ -118,19 +118,19 @@ async def test_run_poll_cycle_polls_and_auto_finalizes(
         start_date=today - timedelta(days=1),
         end_date=today + timedelta(days=1),
         picks_lock_at=datetime(2099, 1, 1),
-        espn_event_id="evt-completed",
+        provider_event_id="evt-completed",
         is_complete=False,
         sequence=1,
     )
     db_session.add(tournament)
     await db_session.commit()
 
-    # 2. Mock play hours and ESPN API client responses
-    import app.services.espn_poller as poller_module
+    # 2. Mock play hours and provider API client responses
+    import app.services.provider_poller as poller_module
     monkeypatch.setattr(poller_module, "is_during_tournament_hours", lambda **kw: True)
 
     async def mock_fetch_leaderboard(event_id):
-        return [ESPNGolferResult(golfer_id=1, total_score="E", position=1)]
+        return [ProviderPlayerResult(player_id=1, total_score="E", position=1)]
 
     async def mock_fetch_event_status(event_id):
         return {
@@ -139,8 +139,8 @@ async def test_run_poll_cycle_polls_and_auto_finalizes(
             "status_detail": "Final",
         }
 
-    monkeypatch.setattr(poller_module.espn_client, "fetch_leaderboard", mock_fetch_leaderboard)
-    monkeypatch.setattr(poller_module.espn_client, "fetch_event_status", mock_fetch_event_status)
+    monkeypatch.setattr(poller_module.provider_client, "fetch_leaderboard", mock_fetch_leaderboard)
+    monkeypatch.setattr(poller_module.provider_client, "fetch_event_status", mock_fetch_event_status)
 
     # 3. Execute poller cycle
     summary = await poller_module.run_poll_cycle(force=True)

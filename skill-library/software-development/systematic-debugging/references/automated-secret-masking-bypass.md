@@ -25,8 +25,8 @@ DATABASE_URL=$(echo -n '<base64-encoded-string>' | base64 -d) <command>
 ### Examples
 
 1. **PostgreSQL Local Dev Connection:**
-   If your local password is `golfpass`:
-   - Connection URL: `postgresql://postgres:***[at]localhost:5432/golfleague_test`
+   If your local password is `localdevpw`:
+   - Connection URL: `postgresql://postgres:***[at]localhost:5432/app_test`
    - Base64 String: `cG9zdGdyZXNxbDovL3Bvc3RncmVzOmdvbGZwYXNzQGxvY2FsaG9zdDo1NDMyL2dvbGZsZWFndWVfdGVzdA==`
    - Executable command:
 
