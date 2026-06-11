@@ -29,9 +29,12 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
-    from harness_llm import resolve_claude_model
+    from harness_llm import resolve_claude_model, resolve_tier_model
 except ImportError:
     def resolve_claude_model() -> str:
+        return ""
+
+    def resolve_tier_model(tier) -> str:
         return ""
 
 
@@ -285,11 +288,11 @@ def build_fix_prompt(targets: list[FailureTarget], attempt: int,
 # -- Dispatch command builder --
 
 def build_dispatch_command(prompt: str, engine: str, repo: str,
-                           max_turns: int = 10) -> str:
+                           max_turns: int = 10, model: str = "") -> str:
     """Build the CLI command for the active harness."""
     escaped = prompt.replace("'", "'\\''")
-    model = resolve_claude_model()
-    model_flag = f" --model {model}" if model else ""
+    m = model or resolve_claude_model()
+    model_flag = f" --model {m}" if m else ""
 
     if engine == "claude-code":
         return (
@@ -340,8 +343,12 @@ def heal(repo: str, check_cmd: str, engine: str,
     attempts = []
     for attempt_num in range(1, max_attempts + 1):
         prompt = build_fix_prompt(targets, attempt_num, attempts, repo)
+        # Model ladder: early attempts run the standard tier; the final
+        # attempt (last stop before human escalation) bumps to premium.
+        tier = "premium" if attempt_num == max_attempts else "standard"
         cmd = build_dispatch_command(prompt, engine, repo,
-                                     max_turns=10 + (attempt_num * 5))
+                                     max_turns=10 + (attempt_num * 5),
+                                     model=resolve_tier_model(tier))
 
         try:
             fix_result = subprocess.run(

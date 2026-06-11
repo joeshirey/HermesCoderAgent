@@ -45,7 +45,12 @@ Precedence: `--autonomy` flag > `<repo>/.hermes-github.yaml` (`autonomy:`) > `co
 Commit (local; drafts + humanizes the message from the staged diff):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine <active-harness> --branch '<branch>' --json", workdir="~/.hermes-coder", timeout=600)
+terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine opencode --branch '<branch>' --json", workdir="~/.hermes-coder", timeout=600)
+```
+
+Message drafting is a support pass — `--engine opencode` (Gemini Flash) is the default for `commit`/`pr`; if opencode is unavailable, fall back to `--engine claude-code` (the tool also degrades to a deterministic message on its own).
+
+```
 ```
 
 **Pre-commit hygiene gate.** Before committing, the tool inspects the staged files. Staged
@@ -93,7 +98,7 @@ yields nothing (the issue silently stays open), and a bare embedded digit like `
 matched. So don't rely on inference — thread the known issue number through explicitly.
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine <active-harness> --base main --issue <N> --json", workdir="~/.hermes-coder", timeout=180)
+terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine opencode --base main --issue <N> --json", workdir="~/.hermes-coder", timeout=180)
 ```
 
 CI status (one-shot) / CI watch (blocking):

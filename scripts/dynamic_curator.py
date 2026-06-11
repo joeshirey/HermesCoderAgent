@@ -176,7 +176,8 @@ def llm_analyze(task: str, engine: Optional[str] = None) -> Optional[dict]:
     Returns None if the harness is unavailable."""
     try:
         content = harness_generate(
-            task, engine=engine, system=TRIAGE_SYSTEM_PROMPT, timeout=120
+            task, engine=engine, system=TRIAGE_SYSTEM_PROMPT, timeout=120,
+            tier="fast",
         )
     except HarnessUnavailable:
         return None

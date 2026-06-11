@@ -367,7 +367,8 @@ def llm_anti_ai_pass(
 
     try:
         out = harness_generate(
-            prompt, engine=engine, repo=repo_dir, timeout=HARNESS_TIMEOUT
+            prompt, engine=engine, repo=repo_dir, timeout=HARNESS_TIMEOUT,
+            tier="fast",
         )
     except HarnessUnavailable:
         return None

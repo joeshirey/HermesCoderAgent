@@ -215,7 +215,8 @@ def llm_scan(source: Path, engine: Optional[str], max_files: int) -> Optional[li
 
     payload = "\n\n".join(parts)
     raw = harness_generate(
-        payload, engine=engine, system=LLM_SYSTEM_PROMPT, timeout=180
+        payload, engine=engine, system=LLM_SYSTEM_PROMPT, timeout=180,
+        tier="premium",
     )
     content = strip_fences(raw)
     try:

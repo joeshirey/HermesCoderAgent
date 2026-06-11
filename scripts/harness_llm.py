@@ -82,7 +82,26 @@ def resolve_claude_model() -> str:
     return _read_coding_block().get("claude_model", "").strip()
 
 
-def _build_cmd(prompt: str, engine: str, repo: Optional[str]) -> list:
+TIERS = ("fast", "standard", "elevated", "premium")
+
+
+def resolve_tier_model(tier: Optional[str]) -> str:
+    """Model for a routing tier (config `coding.model_<tier>`). Falls back to
+    the global claude_model when the tier key is unset or unknown."""
+    if tier in TIERS:
+        m = _read_coding_block().get(f"model_{tier}", "").strip()
+        if m:
+            return m
+    return resolve_claude_model()
+
+
+def _engine_for_model(model: str) -> str:
+    """gemini-* models run via opencode (Vertex); everything else via claude CLI."""
+    return "opencode" if model.startswith("gemini") else "claude-code"
+
+
+def _build_cmd(prompt: str, engine: str, repo: Optional[str],
+               model: str = "") -> list:
     """Build a list-form (no shell) command for a single text-in/text-out
     pass. No file-editing tools are granted; the prompt is self-contained."""
     if engine == "antigravity":
@@ -95,7 +114,7 @@ def _build_cmd(prompt: str, engine: str, repo: Optional[str]) -> list:
     if engine == "opencode":
         cmd = ["opencode", "run", prompt,
                "--dangerously-skip-permissions",
-               "-m", "google-vertex/gemini-3.5-flash"]
+               "-m", f"google-vertex/{model if model.startswith('gemini') else 'gemini-3.5-flash'}"]
         if repo:
             cmd += ["--dir", repo]
         return cmd
@@ -104,9 +123,9 @@ def _build_cmd(prompt: str, engine: str, repo: Optional[str]) -> list:
     cmd = ["claude", "-p", prompt,
            "--max-turns", "2",
            "--dangerously-skip-permissions"]
-    model = resolve_claude_model()
-    if model:
-        cmd += ["--model", model]
+    m = model or resolve_claude_model()
+    if m:
+        cmd += ["--model", m]
     return cmd
 
 
@@ -117,14 +136,25 @@ def harness_generate(
     system: Optional[str] = None,
     repo: Optional[str] = None,
     timeout: int = 120,
+    tier: Optional[str] = None,
 ) -> str:
     """Run one text-in/text-out pass through the resolved harness and return
     stdout. Raises HarnessUnavailable on any failure (missing binary, non-zero
     exit, timeout, or empty output). `system`, if given, is prepended to the
-    prompt (CLI harnesses have no separate system channel)."""
-    eng = resolve_engine(engine)
+    prompt (CLI harnesses have no separate system channel).
+
+    `tier` selects a routing tier from config (`coding.model_<tier>`); the
+    model then picks its engine (gemini-* -> opencode, otherwise claude CLI).
+    An explicit `engine` argument wins over tier-based engine selection."""
+    model = resolve_tier_model(tier) if tier else ""
+    if engine:
+        eng = resolve_engine(engine)
+    elif model:
+        eng = _engine_for_model(model)
+    else:
+        eng = resolve_engine(None)
     full = prompt if not system else f"{system}\n\n{prompt}"
-    cmd = _build_cmd(full, eng, repo)
+    cmd = _build_cmd(full, eng, repo, model=model)
     try:
         r = subprocess.run(
             cmd, capture_output=True, text=True, timeout=timeout

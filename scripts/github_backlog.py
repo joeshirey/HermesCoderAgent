@@ -752,7 +752,8 @@ def _llm_chat_json(system: str, user: str, engine: Optional[str] = None):
     if harness_generate is None:
         return None
     try:
-        content = harness_generate(user, engine=engine, system=system, timeout=120)
+        content = harness_generate(user, engine=engine, system=system, timeout=120,
+                                   tier="fast")
         return json.loads(strip_fences(content).strip())
     except HarnessUnavailable:
         return None

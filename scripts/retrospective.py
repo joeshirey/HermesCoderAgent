@@ -164,7 +164,8 @@ def _llm_summarize(evidence: str, engine: Optional[str]) -> Optional[dict]:
     if the harness is unreachable / the response is unparseable."""
     try:
         raw = harness_generate(
-            evidence, engine=engine, system=_SUMMARY_SYSTEM_PROMPT, timeout=120
+            evidence, engine=engine, system=_SUMMARY_SYSTEM_PROMPT, timeout=120,
+            tier="fast",
         )
     except HarnessUnavailable:
         return None
@@ -557,7 +558,8 @@ def _merge_cluster(cluster: list, engine: str) -> tuple[Optional[Lesson], str]:
 def _llm_summarize_general(evidence: str, engine: Optional[str]) -> Optional[dict]:
     try:
         raw = harness_generate(
-            evidence, engine=engine, system=_GENERALIZE_SYSTEM_PROMPT, timeout=120
+            evidence, engine=engine, system=_GENERALIZE_SYSTEM_PROMPT, timeout=120,
+            tier="fast",
         )
     except HarnessUnavailable:
         return None

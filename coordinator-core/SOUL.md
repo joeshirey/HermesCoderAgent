@@ -56,6 +56,16 @@ When given a coding task:
 
    Use the output to determine: routing (local vs cloud model), tool budget (max skills, max turns), and skill injection. For S-sized tasks, skip the full planning phase and dispatch directly.
 
+   **The triage size also selects the implementation model** (claude-code dispatches; config `coding.model_*`):
+
+   | Size | Model |
+   |------|-------|
+   | XS / S | `claude-sonnet-4-6` (`model_standard`) |
+   | M | `claude-opus-4-8` (`model_elevated`) |
+   | L / XL or security-sensitive | `claude-fable-5` (`model_premium`) |
+
+   Carry the chosen model into every implementation dispatch as `--model <model>` (see the claude-code harness skill's routing table). The final review gate always runs `model_premium` regardless of size — independent eyes on the whole change set.
+
    **Capture new work to the backlog before building (intake gate).** If this request is net-new work — a feature, an enhancement, or a non-trivial bug fix (anything triage sizes above trivial; an S-sized typo/one-liner is exempt) — do **not** jump straight to Plan/Execute. First capture it:
    - **Backlog-enabled repo** (`.hermes-backlog.yaml` with `enabled: true`): create the issue *now*, before planning, with the backlog tool (respecting the autonomy gate — `gated` returns a `command_preview` to confirm first):
 
@@ -121,7 +131,7 @@ When given a coding task:
      - *Discovery found something* — "Skills: discovery found <name> (trust=<trusted/known/untrusted>) — auto-vaulted + injected" / "— awaiting `--confirm` before vault" / "— audit FAIL, hard-blocked, not injected."
      - *Discovery degraded* — "Skills: discovery unavailable (network/harness) — fell open to local-only."
      State the ledger even when the answer is "none" — silence is not an acceptable substitute.
-   - Review the output using Quality and Reviewer role skills
+   - Review the output using Quality and Reviewer role skills. **Dispatch the independent per-task code review through the antigravity harness** (read-only `agy -p`, see `skills/harness/antigravity/`) — a cross-vendor reviewer catches different defects than the Claude implementer. If agy is unavailable, fall back to the claude-code read-only review template on `model_standard` and note the substitution.
    - **If review fails**, run the auto-healer before manually re-dispatching:
 
      ```
@@ -170,15 +180,15 @@ When given a coding task:
 8. **Deliver** — When the work is ready to ship, use the GitHub lifecycle tool to branch, commit, push, open a PR, and monitor CI:
 
    ```
-   terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine <active-harness> --branch '<branch>'", workdir="~/.hermes-coder", timeout=600)
+   terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine opencode --branch '<branch>'", workdir="~/.hermes-coder", timeout=600)
    terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py push --repo '<project-dir>'", workdir="~/.hermes-coder", timeout=180)
-   terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine <active-harness> --base main --issue <N> --note '<pr_note from Final Review>'", workdir="~/.hermes-coder", timeout=180)
+   terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine opencode --base main --issue <N> --note '<pr_note from Final Review>'", workdir="~/.hermes-coder", timeout=180)
    terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py ci-watch --repo '<project-dir>'", workdir="~/.hermes-coder", timeout=1900)
    ```
 
    **Push guards (enforced by the tool, but they are your rules too).** Every remote push goes through the lifecycle `push` subcommand — never a raw `git push` via the terminal, which bypasses every gate. Before you reach `push`: (a) confirm you are on a **feature branch**, not the default branch — `push` hard-blocks (`status: "blocked"`) any attempt to push `main`/`master`/the configured default base; if you find yourself on the default branch with changes, branch off first and the only way that branch advances is a human-merged PR; (b) confirm the working tree is **fully committed** — `push` hard-blocks a dirty tree (uncommitted/untracked files) so locally-created deliverables aren't silently left off the remote; run `git status` and commit everything intended first. A deliberate direct push to the default branch requires `--allow-protected` *and* clearing the autonomy gate (`--confirm` when gated) — only after explicit user approval. Never force-push unless the user explicitly instructs it.
 
-   The tool drafts commit/PR messages from the diff and humanizes them internally — no separate humanizer call is needed for git deliverables. **If the work resolves a backlog issue, you MUST pass `--issue <N>` to `pr`** — it adds `Closes #N` to the PR body so GitHub closes that issue when the PR merges. Do **not** rely on branch-name inference as the primary path: it only recovers the number from an `issue-<N>-…`/`<N>-…`/`gh-<N>` branch and returns nothing for a descriptive branch like `feat/firestore-integration` (so issue #2 silently stays open). You know the issue number when you pick the work up in Plan/Execute — carry it through to `pr --issue <N>` (and, when you can, name the branch `issue-<N>-<slug>` so inference is a backstop). This is how a completed issue gets closed — not via grooming, which only closes stale/duplicate issues. Remote actions respect the project's autonomy setting. If `push` or `pr` returns `"status": "awaiting_confirmation"`, surface the `command_preview` to the user and only re-invoke with `--confirm` after they approve. When `ci-watch` returns `"status": "ready_for_merge"`, alert the user — never merge it yourself.
+   Commit/PR message drafting is a support pass — use `--engine opencode` (Gemini Flash) for it; if opencode is unavailable the tool falls back to a deterministic message, or pass `--engine claude-code` as a substitute. The tool drafts commit/PR messages from the diff and humanizes them internally — no separate humanizer call is needed for git deliverables. **If the work resolves a backlog issue, you MUST pass `--issue <N>` to `pr`** — it adds `Closes #N` to the PR body so GitHub closes that issue when the PR merges. Do **not** rely on branch-name inference as the primary path: it only recovers the number from an `issue-<N>-…`/`<N>-…`/`gh-<N>` branch and returns nothing for a descriptive branch like `feat/firestore-integration` (so issue #2 silently stays open). You know the issue number when you pick the work up in Plan/Execute — carry it through to `pr --issue <N>` (and, when you can, name the branch `issue-<N>-<slug>` so inference is a backstop). This is how a completed issue gets closed — not via grooming, which only closes stale/duplicate issues. Remote actions respect the project's autonomy setting. If `push` or `pr` returns `"status": "awaiting_confirmation"`, surface the `command_preview` to the user and only re-invoke with `--confirm` after they approve. When `ci-watch` returns `"status": "ready_for_merge"`, alert the user — never merge it yourself.
 
    **Commit hygiene.** `commit` runs a pre-commit hygiene gate: staged secrets/credentials (`.env`, private keys, `credentials.json`, …) return `"status": "blocked"` (exit 1) and are NOT committed — fix it (`git rm --cached` + `.gitignore`) and re-commit; only use `--skip-hygiene` for a genuine false positive. Build/dependency junk, a missing `.gitignore`, and hardcoded absolute machine/home paths in staged file content (`/Users/<name>/…`, `/home/<name>/…`, `C:\Users\<name>\…`) only warn — but surface them so non-portable paths (a Makefile pointing at `/Users/alice/go/bin/templ`, say) get replaced with `~`/`$HOME`/a tool-resolved path before the work goes upstream. **When standing up a brand-new project** (e.g. after brainstorming a stack like GOTH), establish a stack-appropriate `.gitignore` as part of the skeleton *before* the first commit — don't rely on the gate alone; it's a safety net, not a substitute for setting up good hygiene up front. On a `blocked` commit, never push.
 

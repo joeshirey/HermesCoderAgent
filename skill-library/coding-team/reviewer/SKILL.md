@@ -76,7 +76,7 @@ Apply this lens for final code review, PR preparation, and synthesizing feedback
 
 ## Dispatch Template
 
-When dispatching code review (see active harness skill for exact command syntax):
+**Default harness for per-task independent reviews: antigravity** (`agy -p`, read-only) — a cross-vendor reviewer catches defects the Claude implementer is blind to, cheaply and with a large context window. Fall back to claude-code on `model_standard` only if agy is unavailable, and note the substitution. (The *final* pre-push review is different: `final_review.py` on `model_premium` — see the final-review skill.)
 
 - **Prompt:** "Review the changes on branch `<branch>` vs `<base>`. Check: correctness, readability, test coverage, security, documentation. Report findings categorized as blocking/suggestion/nit."
 - **Scope:** read-only, run commands (no file modifications)

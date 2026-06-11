@@ -15,12 +15,21 @@ Dispatch patterns for using Claude Code (`claude -p`) as the coding engine.
 ## One-Shot Command
 
 ```
-claude -p '<prompt>' --model claude-fable-5
+claude -p '<prompt>' --model <model-per-routing-table>
 ```
 
 Claude Code print mode runs a single prompt non-interactively and returns the result. It uses Vertex AI authentication on this machine — no API key needed in the command.
 
-**Model:** always pass `--model claude-fable-5` on claude-code dispatches. The canonical value lives in `config.yaml` under `coding.claude_model` (the coordinator scripts read it from there automatically); keep these templates in sync with it.
+**Model routing:** always pass `--model` on claude-code dispatches, selected by the task's triage size. The canonical values live in `config.yaml` under `coding.model_*` (coordinator scripts read them automatically); keep this table in sync with it.
+
+| Triage size / task | Model | Config key |
+|---|---|---|
+| XS / S implementation, simple edits, fix loops | `claude-sonnet-4-6` | `model_standard` |
+| M implementation | `claude-opus-4-8` | `model_elevated` |
+| L / XL implementation, security-sensitive work | `claude-fable-5` | `model_premium` |
+| Final review gate (handled by `final_review.py`) | `claude-fable-5` | `model_premium` |
+
+Per-task independent code reviews go to the **antigravity** harness (cross-vendor fresh eyes — see `skills/harness/antigravity/`), not claude-code; fall back to the read-only template below with `model_standard` only if agy is unavailable. High-volume text passes (humanizer, triage, summaries, drafting) run on `model_fast` (Gemini Flash via opencode) inside the support scripts — never dispatch those here manually.
 
 ## Dispatch Templates
 
@@ -28,7 +37,7 @@ Claude Code print mode runs a single prompt non-interactively and returns the re
 
 ```
 terminal(
-    command="claude -p '<self-contained task prompt>' --allowedTools 'Read,Edit,Write,Bash' --max-turns 15 --model claude-fable-5",
+    command="claude -p '<self-contained task prompt>' --allowedTools 'Read,Edit,Write,Bash' --max-turns 15 --model <model-per-size>",
     workdir="<project-dir>",
     timeout=300
 )
@@ -38,7 +47,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p 'In <file>, update <function> to <change>. Run existing tests to verify.' --allowedTools 'Read,Edit,Bash' --max-turns 10 --model claude-fable-5",
+    command="claude -p 'In <file>, update <function> to <change>. Run existing tests to verify.' --allowedTools 'Read,Edit,Bash' --max-turns 10 --model claude-sonnet-4-6",
     workdir="<project-dir>",
     timeout=120
 )
@@ -48,7 +57,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p 'Implement <feature> as described: <spec>. Create files in <location>. Write tests in <test-location>. Follow existing patterns in <example-file>.' --allowedTools 'Read,Edit,Write,Bash' --max-turns 20 --model claude-fable-5",
+    command="claude -p 'Implement <feature> as described: <spec>. Create files in <location>. Write tests in <test-location>. Follow existing patterns in <example-file>.' --allowedTools 'Read,Edit,Write,Bash' --max-turns 20 --model <model-per-size>",
     workdir="<project-dir>",
     timeout=300
 )
@@ -58,7 +67,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p 'Fix bug: <description>. Reproduce with: <repro-steps>. Root cause is likely in <file>. Add a regression test.' --allowedTools 'Read,Edit,Bash' --max-turns 15 --model claude-fable-5",
+    command="claude -p 'Fix bug: <description>. Reproduce with: <repro-steps>. Root cause is likely in <file>. Add a regression test.' --allowedTools 'Read,Edit,Bash' --max-turns 15 --model <model-per-size>",
     workdir="<project-dir>",
     timeout=180
 )
@@ -68,7 +77,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p 'Refactor <component>: <goal>. Preserve all existing behavior. Run tests after each change.' --allowedTools 'Read,Edit,Bash' --max-turns 20 --model claude-fable-5",
+    command="claude -p 'Refactor <component>: <goal>. Preserve all existing behavior. Run tests after each change.' --allowedTools 'Read,Edit,Bash' --max-turns 20 --model <model-per-size>",
     workdir="<project-dir>",
     timeout=300
 )
@@ -78,7 +87,7 @@ terminal(
 
 ```
 terminal(
-    command="claude -p '<review prompt>' --allowedTools 'Read,Bash' --max-turns 10 --model claude-fable-5",
+    command="claude -p '<review prompt>' --allowedTools 'Read,Bash' --max-turns 10 --model claude-sonnet-4-6",
     workdir="<project-dir>",
     timeout=120
 )
@@ -95,7 +104,7 @@ LOGIC (auto-FAIL): wrong conditionals, missing error handling for I/O, off-by-on
 SUGGESTIONS (non-blocking): missing tests, style, performance, naming.
 
 Run: git diff HEAD~1 HEAD
-Report: list security concerns, logic errors, and suggestions.' --allowedTools 'Read,Bash' --max-turns 10 --model claude-fable-5",
+Report: list security concerns, logic errors, and suggestions.' --allowedTools 'Read,Bash' --max-turns 10 --model claude-sonnet-4-6",
     workdir="<project-dir>",
     timeout=120
 )
@@ -107,7 +116,7 @@ Report: list security concerns, logic errors, and suggestions.' --allowedTools '
 terminal(
     command="claude -p 'Fix ONLY these specific issues. Do NOT refactor or change anything else:
 <list of issues>
-' --allowedTools 'Read,Edit,Bash' --max-turns 10 --model claude-fable-5",
+' --allowedTools 'Read,Edit,Bash' --max-turns 10 --model claude-sonnet-4-6",
     workdir="<project-dir>",
     timeout=120
 )
@@ -119,7 +128,7 @@ terminal(
 |------|---------|-------------|
 | `--allowedTools` | Restrict which tools Claude Code can use | Always — limit scope per task |
 | `--max-turns` | Cap iterations to prevent runaway tasks | Always — default 15, lower for simple tasks |
-| `--model` | Pin the model for the dispatch | Always — `claude-fable-5` (config `coding.claude_model`) |
+| `--model` | Pin the model for the dispatch | Always — per the Model routing table (config `coding.model_*`) |
 | `--dangerously-skip-permissions` | Auto-approve all tool use | When running unattended via coordinator |
 | `--append-system-prompt` | Inject additional system context | When adding tech-specific guidance |
 
