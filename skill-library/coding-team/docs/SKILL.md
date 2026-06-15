@@ -44,6 +44,15 @@ To avoid sterile, robotic, or AI-slop documentation, always load and apply the *
 - **Simple, active language:** Avoid passive phrases ("No configuration file is required") in favor of active, direct instructions ("You do not need a config file").
 - **No filler or signposting:** Don't announce what you are going to say ("Let's dive into..."). Just state the facts.
 
+## Common Markdown & CI Pitfalls
+
+Regex-based documentation linters and CI checkers (such as `test/docs-build.test.ts`) can easily be broken by literal markdown structures embedded inside formatting cells. Keep these rules in mind:
+
+- **Literal Triple-Backticks in Tables:** Avoid displaying literal triple-backticks (` ``` `) inside a markdown table cell by nesting them inside four backticks (e.g. ```` ``` ````). Primitive regex counters (such as those counting `/```/g` to ensure an even number of code fences) will count the cell contents as a mismatched/unbalanced fence and break the CI build.
+  - *Fix:* Rephrase the cell content using plain prose (e.g. *"three backticks"* or *"single backtick"*) instead of attempting to render literal backtick symbols in table columns.
+- **Unbalanced Fences:** Always verify that every opening triple-backtick block is closed with an identical triple-backtick fence.
+- **Language Specifications:** Provide a valid language specifier (such as `bash`, `typescript`, `python`, `json`) immediately following the opening triple-backtick unless writing a generic output snippet. Checkers often fail blocks with missing or empty language identifiers.
+
 ## Documentation Review Checklist
 
 - [ ] Public APIs have clear documentation
