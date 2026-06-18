@@ -65,7 +65,18 @@ When designing cloud-backed services (e.g., Firestore, DynamoDB, MongoDB):
 - **Target Named Databases**: Solve this by creating a secondary named database in Native Mode (e.g., `restres`) and instantiating the Go client using `NewClientWithDatabase(ctx, projectID, databaseID)` instead of the default constructor.
 - **Dynamic Database Routing**: Expose the database name as a configurable environment variable (e.g., `FIRESTORE_DATABASE`) to route queries dynamically across environments.
 
-## Codebase-Wide Architectural Audits & Backlog Recommendations
+### 3. Gated Invitation & Pre-Seeded Account-Claiming Pattern (OAuth)
+
+When designing web applications where users must submit data (like rosters, picks, or preferences) before their first login, or when they encounter onboarding hurdles prior to a hard game-day or transaction deadline (e.g. fantasy pools, sports leagues, gated enterprise portals):
+
+- **The Seed Stage:** Pre-create/seed the user record in the `User` table with their `email` and `display_name` (leaving their OAuth `google_sub` or login provider identifier as `None`/`null`).
+- **The Operation Stage:** Because a valid `User` record now exists with a unique ID, the system allows the commissioner or background processes to create, validate, and persist user-owned data (e.g. `Pick` rows, rosters, profiles) on their behalf *before* they have registered an account.
+- **The Claim/Link Stage:** Update the OAuth callback service (e.g. `get_or_create_user(db, email, google_sub, ...)`) to support email-matching fallbacks:
+  - If a user is not found by `google_sub`, perform a case-insensitive lookup on `email`.
+  - If a pre-seeded user is found by `email` (with a null/placeholder `google_sub`), bind the authenticating `google_sub` to their Google ID, normalize their data, and complete the sign-in.
+  - This seamlessly merges their account, instantly claiming their pre-seeded roster and standings history on first login with zero manual data-reconciliation or account-merging scripts needed!
+
+---
 
 When requested to conduct a codebase-wide architectural review, security audit, or generate technical recommendations for a project:
 

@@ -108,9 +108,10 @@ Expected: PASS
 
 Read and understand the feature requirements, constraints, and acceptance criteria.
 
-### Step 2: Explore the Codebase
+### Step 2: Explore the Codebase & Sync with Remote
 
-Use terminal and file tools to understand the project structure, existing patterns, and conventions.
+- **Always Synchronize with the Remote First**: Before drafting any plan, proposing next steps, or recommending PR merges, checkout the default/target branch (`main` or `master`), pull the latest changes from the remote, and query the live status of active pull requests and issues on GitHub (`gh pr list`, `gh issue list`). The user or other agents may have merged PRs or mutated issue states out-of-band since your last session.
+- **Inspect Project Structure**: Use terminal and file tools to understand the project structure, existing patterns, and conventions.
 
 ### Step 3: Design Approach
 
@@ -186,6 +187,12 @@ When initializing a new repository, directory structure, or toolchain, always es
 ### Monorepo & Stale Compilation Hygiene
 
 When planning or executing verification checks in TypeScript/JS or compiled-asset monorepos (such as `squad` or Go applications with generated views), always ensure that a complete, clean build is run (e.g. `npm run build`, `templ generate`) *before* executing the test runner. Running tests directly after making code edits in these environments will often execute against stale, outdated build artifacts (such as compiled JS in `dist/` or `out/`), resulting in false-negative test failures and misleading diagnostic paths.
+
+### React Router Context and React Query Testing Pitfalls
+
+When writing or executing tests for React components that leverage navigation or data-fetching hooks:
+1. **React Router Context:** Any component rendering `<Link>` or using routing hooks (`useNavigate`, `useParams`) will crash during test renders with `TypeError: Cannot destructure property 'basename' of 'React.useContext(...)'` unless it is wrapped inside a router context. Always ensure the test wrapper wraps the component in `<MemoryRouter>` from `react-router-dom`.
+2. **React Query Loading State Pitfall:** In React Query, during the initial render, query data is `undefined` before the mocked promise resolves. If a component renders a fallback message (e.g., "Loading..." or "No week open") during this loading phase, assertions like `expect(screen.getByText("No week open")).toBeInTheDocument()` will pass instantly—succeeding during the loading phase before the mock has actually resolved to its final state! To write robust tests, always assert against elements that *only* appear in the fully resolved state (e.g., using `await screen.findByText("Picks Locked")` or `await waitFor(...)` on resolved elements) to ensure the test waits for mock promise resolution.
 
 ### Sequential Backlog Triage and Timeout Prevention
 
