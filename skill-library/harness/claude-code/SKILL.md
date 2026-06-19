@@ -146,7 +146,11 @@ terminal(
 
 ## Pitfalls & Gotchas
 
-- **Claude Fable 5 Fallback:** Claude Fable 5 (`model_premium`) is currently unstable/broken. If any automated tool, script (such as `final_review.py`), or manual L/XL dispatch fails while using Fable, immediately fall back to `claude-opus-4-8` (`model_elevated`) as the premium coding engine to bypass the outage.
+- **Claude Fable 5 Fallback:** Claude Fable 5 (`model_premium`) is currently unstable/broken or may be unconfigured on Vertex AI deployments. If any automated tool, script (such as `final_review.py`), or manual L/XL dispatch fails while using Fable, immediately configure the fallback to `claude-opus-4-8` (`model_elevated`) as the premium coding engine to bypass the outage:
+  ```bash
+  hermes config set coding.claude_model claude-opus-4-8
+  hermes config set coding.model_premium claude-opus-4-8
+  ```
 - **Hangs on File Writing:** When orchestrating Claude Code via print-mode (`claude -p`), file-writing dispatches will freeze/halt waiting for confirmation unless `--dangerously-skip-permissions` is explicitly appended. Always append this flag for unattended or automated implementations.
 - **Lowercase Tool Names Hang:** Avoid passing lowercase or invalid tool names (like `'Read,Edit,Write,Bash'`) to `--allowedTools` when calling Claude Code (`claude -p`), as this causes immediate hangs. Use exact camelcase tool names (e.g. `ReadFile`, `WriteFile`, `EditFile`, `Bash`, `Glob`, `Grep`) or omit the `--allowedTools` flag entirely.
 - **`--max-turns` starvation:** If a print-mode task halts abruptly without committing or completing the requested output, you likely hit the turn limit. Check `git status` to verify the workspace state. For multi-file refactors, complex bug fixes, or test-writing sessions, increase `--max-turns` to **25-40** to prevent premature exits.

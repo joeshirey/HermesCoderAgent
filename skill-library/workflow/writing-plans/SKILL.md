@@ -198,6 +198,12 @@ When writing or executing tests for React components that leverage navigation or
 
 When executing bulk backlog mutations (such as triage or enrichment across multiple issues), running a single monolithic command (e.g. `triage --limit 20`) can easily exceed tool execution timeouts. Because each issue requires research, RFC-style drafting, and humanizing, a single issue can take 100–150 seconds. The most reliable and robust workflow is to execute the backlog tool with `--limit 1` inside sequential, discrete tool calls. This saves intermediate progress incrementally on each iteration and completely prevents cascading timeouts.
 
+### Verification of Existing Function Signatures & API Contracts
+
+When drafting implementation plans that direct a coding engine to consume or integrate with existing utility functions, model methods, or API clients:
+- **Never Assume or Fabricate Signatures:** Do not guess, assume, or infer parameters, types, or return shapes of existing utilities (e.g. assuming `formatPickedValue(type, value)` accepts a third `options` argument). Writing incorrect method signatures in task dispatches will cause compilation failures, break TypeScript type-checking, and halt automated build execution.
+- **Verify the Codebase First:** Always read the source files containing the target functions beforehand, verify their exact signatures and arguments, and reference the correct structure explicitly inside the task dispatches to ensure the build remains perfectly green and compatible.
+
 ## Remember
 
 ```
