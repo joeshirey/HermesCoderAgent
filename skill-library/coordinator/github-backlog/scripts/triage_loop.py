@@ -25,11 +25,14 @@ def run_triage(repo_path: str, cmd_path: str, max_iterations: int = 40):
         ]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-            if result.returncode != 0:
+            if result.returncode not in (0, 3):
                 print(f"Error: Command failed with exit code {result.returncode}")
                 print(result.stderr)
                 time.sleep(5)
                 continue
+                
+            if result.returncode == 3:
+                print("Note: Issue triaged in degraded mode (LLM harness down / rate-limited).")
                 
             try:
                 data = json.loads(result.stdout)

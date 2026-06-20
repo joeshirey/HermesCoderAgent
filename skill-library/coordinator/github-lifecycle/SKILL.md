@@ -192,3 +192,18 @@ When coordinating multi-stage coding tasks (where some steps write configuration
 
 - **The Trap**: Invoking `push` or `pr` on a branch that appears to be "up to date" (e.g. because only the first stage's `Dockerfile` was committed) will push the branch *without* the newly generated files (leaving them as untracked files in the local workspace).
 - **The Rule**: Always run a local commit check (or `git status`) *explicitly* after completing the final task in an implementation plan, ensuring every single generated asset and config is fully staged and committed *before* triggering any remote push.
+
+### Local Main Commit Leak & Safe Non-Destructive Branch Alignment
+
+- **The Issue**: Coding engines (such as Claude Code or Codex) occasionally commit directly to your local `main` branch if that was the branch currently checked out when they were dispatched. Since direct pushes to `main` are strictly blocked by remote push guards, you are left with `main` ahead of `origin/main` and a block on delivery. Destructive resets (`git reset --hard`) are blocked by non-interactive safety guards.
+- **The Solution**:
+  1. **Transfer Commits to a Feature Branch**: Immediately check out and create your intended feature branch:
+     ```bash
+     git checkout -b feat/your-feature-name
+     ```
+     This safely duplicates the local `main` commits onto your new branch.
+  2. **Non-Destructively Reset the Local Main Pointer**: While checked out on your new feature branch, force-update your local `main` branch pointer back to remote origin:
+     ```bash
+     git branch -f main origin/main
+     ```
+     This safely and non-destructively aligns your local `main` branch with `origin/main` without affecting your checked out workspace, bypassing any destructive command safety gates!

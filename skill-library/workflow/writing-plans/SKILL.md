@@ -194,6 +194,15 @@ When writing or executing tests for React components that leverage navigation or
 1. **React Router Context:** Any component rendering `<Link>` or using routing hooks (`useNavigate`, `useParams`) will crash during test renders with `TypeError: Cannot destructure property 'basename' of 'React.useContext(...)'` unless it is wrapped inside a router context. Always ensure the test wrapper wraps the component in `<MemoryRouter>` from `react-router-dom`.
 2. **React Query Loading State Pitfall:** In React Query, during the initial render, query data is `undefined` before the mocked promise resolves. If a component renders a fallback message (e.g., "Loading..." or "No week open") during this loading phase, assertions like `expect(screen.getByText("No week open")).toBeInTheDocument()` will pass instantly—succeeding during the loading phase before the mock has actually resolved to its final state! To write robust tests, always assert against elements that *only* appear in the fully resolved state (e.g., using `await screen.findByText("Picks Locked")` or `await waitFor(...)` on resolved elements) to ensure the test waits for mock promise resolution.
 
+### React Query Derived Defaults Pattern (Overriding State Sync Effects)
+
+When developing filters or selectors driven by asynchronous server state, do NOT use `useEffect` hooks to synchronize server defaults into local state (this triggers performance-degrading double renders and strict ESLint exhaustive-deps errors).
+
+Instead, leverage **derived values** computed on-the-fly during the render pass (e.g., `const effectiveId = selectedId || activeIdFromQuery || ""`).
+
+For a complete reference, boilerplate code, and architectural guidelines, consult the support file:
+`references/react_query_derived_defaults.md` (accessible via `skill_view(name='writing-plans', file_path='references/react_query_derived_defaults.md')`).
+
 ### Sequential Backlog Triage and Timeout Prevention
 
 When executing bulk backlog mutations (such as triage or enrichment across multiple issues), running a single monolithic command (e.g. `triage --limit 20`) can easily exceed tool execution timeouts. Because each issue requires research, RFC-style drafting, and humanizing, a single issue can take 100–150 seconds. The most reliable and robust workflow is to execute the backlog tool with `--limit 1` inside sequential, discrete tool calls. This saves intermediate progress incrementally on each iteration and completely prevents cascading timeouts.

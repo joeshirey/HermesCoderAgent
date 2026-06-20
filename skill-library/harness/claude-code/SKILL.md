@@ -26,8 +26,8 @@ Claude Code print mode runs a single prompt non-interactively and returns the re
 |---|---|---|
 | XS / S implementation, simple edits, fix loops | `claude-sonnet-4-6` | `model_standard` |
 | M implementation | `claude-opus-4-8` | `model_elevated` |
-| L / XL implementation, security-sensitive work | `claude-fable-5` | `model_premium` |
-| Final review gate (handled by `final_review.py`) | `claude-fable-5` | `model_premium` |
+| L / XL implementation, security-sensitive work | `claude-opus-4-8` | `model_premium` |
+| Final review gate (handled by `final_review.py`) | `claude-opus-4-8` | `model_premium` |
 
 Per-task independent code reviews go to the **antigravity** harness (cross-vendor fresh eyes — see `skills/harness/antigravity/`), not claude-code; fall back to the read-only template below with `model_standard` only if agy is unavailable. High-volume text passes (humanizer, triage, summaries, drafting) run on `model_fast` (Gemini Flash via opencode) inside the support scripts — never dispatch those here manually.
 

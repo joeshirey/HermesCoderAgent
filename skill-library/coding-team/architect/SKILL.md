@@ -76,6 +76,19 @@ When designing web applications where users must submit data (like rosters, pick
   - If a pre-seeded user is found by `email` (with a null/placeholder `google_sub`), bind the authenticating `google_sub` to their Google ID, normalize their data, and complete the sign-in.
   - This seamlessly merges their account, instantly claiming their pre-seeded roster and standings history on first login with zero manual data-reconciliation or account-merging scripts needed!
 
+### 4. Multi-Phase Season Partitioning & Strategy Strategy
+
+When designing systems that must transition between distinct calendar phases (such as regular season vs postseason bowl games, or qualifying rounds vs main tournaments) where pick constraints, validation rules, and scoring formulas differ:
+
+- **Single discriminator column (`season_phase`):** Add a simple phase column to your parent scheduler table (such as `Week.season_phase` = `"regular"` or `"bowl"`). This avoids polluting child tables with separate flags or creating completely separate relational schemas.
+- **Strategized Pick Validation (`pick_validator.py`):** Rather than writing multiple validator classes that duplicate code, inject the `season_phase` directly into your validation context and conditionally bypass phase-inapplicable checks:
+  - *Regular Phase:* Enforce all standard roster constraints, point ranges, and draft limits.
+  - *Bowl/Postseason Phase:* Short-circuit or bypass standard draft ranges, eligibility constraints, or bye structures (since postseason schedules don't have standard BYE weeks and games involve unranked teams), but keep core kickoff-based lockout and unique-pick integrity checks active.
+- **Polymorphic Scoring Engine (`scoring_orchestrator.py`):** Route scoring to distinct, phase-specific calculation functions (e.g. `compute_base_score` vs `compute_bowl_score`) on-the-fly depending on the target week's `season_phase`:
+  - *Regular Scoring:* Use dynamic rank-based and opponent-adjusted points.
+  - *Postseason Scoring:* Use flat-rate points per correct selection (e.g., flat 10.0 points per correct loser and 15.0 points per correct winner).
+- **Default Leaderboard Gating (`standings.py`):** By default, exclude postseason phases from your main standings and streak queries (e.g., query `WHERE Week.season_phase == 'regular'`) to prevent postseason scores from polluting or skewing your canonical regular season total tables. Expose optional `season_phase` query parameters to allow dedicated postseason standings dashboards to be rendered independently.
+
 ---
 
 When requested to conduct a codebase-wide architectural review, security audit, or generate technical recommendations for a project:
