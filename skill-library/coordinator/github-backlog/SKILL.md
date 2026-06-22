@@ -239,10 +239,23 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
   * **Instant Bulk Creation (Bypass Harness & Humanizer)**: When bulk-logging clearly specified checklists (e.g., from design docs or NEXT_STEPS files) where deep research/humanization is unnecessary, append the `--no-harness` and `--no-humanize` flags. This bypasses the heavy LLM loops entirely, creating the issues on GitHub virtually instantly (while still applying correct namespaced labels and classification metadata) and completely eliminating timeout risk.
   * **Avoid sequential bulk creations or triage in `execute_code`**: These will quickly hit its strict 5-minute execution limit.
 
-### 2. Incremental Python Looping Workaround for Bulk Triage
+### 2. Incremental Python Looping Workaround for Bulk Triage & Enrichment
 
-* **Problem**: When a repository has a large backlog of untriaged issues (e.g., 20+), running them sequentially using standard tools can still be slow and easily interrupted, and doing them in a single batch command is highly susceptible to total timeout failure (since writes only commit at the very end).
-* **Solution**: Create and run a lightweight, self-healing Python wrapper (like `triage_loop.py`) that executes `triage --limit 1 --confirm --json` inside an unbuffered loop (using `python3 -u`). This commits each triaged issue incrementally to the remote, logs progress in real-time, and can be started as an asynchronous background task with zero risk of transaction loss if interrupted.
+* **Problem**: When a repository has a large backlog of untriaged or "thin" boilerplate issues (e.g., 20+), running them sequentially using standard tools can still be slow and easily interrupted, and doing them in a single batch command is highly susceptible to total timeout failure (since writes only commit at the very end).
+* **Solution**:
+  * **For Triage**: Create and run a lightweight, self-healing Python wrapper (like `triage_loop.py`) that executes `triage --limit 1 --confirm --json` inside an unbuffered loop (using `python3 -u`). This commits each triaged issue incrementally to the remote and logs progress in real-time.
+  * **For Enrichment**: For issues already carrying metadata labels but lacking technical context (such as thin boilerplate issues with `_TBD_` markers), use the included `scripts/enrich_loop.py` wrapper. This automatically queries GitHub for any open issues with `_TBD_` bodies, runs `enrich --issue <n> --confirm` on each sequentially, and logs results cleanly to `~/.hermes-coder/logs/enrich_loop.log`.
+  * **Asynchronous Execution**: Always run these loop scripts as asynchronous background terminal tasks (`background=true, notify_on_complete=true`) so they run completely autonomously in the background without blocking the parent turn or triggering a foreground terminal timeout.
+
+### 5. Degraded Triage/Enrichment & opencode/Vertex Failures
+
+* **Problem**: When creating or triaging issues, they write to GitHub with empty boilerplate bodies containing `_TBD_` markers, and the tool returns exit code `3` (degraded).
+* **Root Cause**: The fast LLM tier (`model_fast`, defaulting to `gemini-3.5-flash`) is routed through the `opencode` (Vertex) backend engine. If that backend is experiencing server-side errors, the backlog tool falls back to a minimal heuristic triage pass, producing empty `_TBD_` templates.
+* **Solution**: Re-route the fast-tier model to a stable, robust provider (like `claude-sonnet-4-6` via the standard `claude-code` CLI). Run this configuration command inside the terminal:
+  ```bash
+  hermes config set coding.model_fast claude-sonnet-4-6
+  ```
+  This immediately re-routes the fast research and classification passes, restoring high-fidelity, fully enriched backlog issue creation and triage.
 
 ### 3. Selective Humanization of Backlog Descriptions
 
@@ -321,6 +334,20 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
 
 * **Problem**: When using `antigravity` (agy) as the backlog research or LLM engine, calls will fail if the Google Cloud SDK path is unconfigured or credentials cannot be resolved.
 * **Solution**: Always append `/Users/you/Downloads/google-cloud-sdk/bin` to the command environment's `$PATH` and ensure the active GCP project is set via `GOOGLE_CLOUD_PROJECT` and `CLOUDSDK_CORE_PROJECT` env variables (e.g., `your-gcp-project-id`).
+
+### 3. Silent TBD Fallbacks via Max-Turns Limits
+
+* **Problem**: When running `enrich` or `triage` on large, complex, or loosely specified issues (such as dead code elimination, adding E2E test suites, or wide page migrations), the underlying Claude Code dispatch may need to grep and inspect many files across the codebase. If the `--max-turns` safety valve in the dispatch script is set too low (e.g., the default of 8 turns), Claude Code will hit its turn limit, exit with a non-zero code, and fail to return the researched context. The backlog tool will gracefully degrade and silently write the boilerplate `_TBD_` blocks while still reporting successful enrichment.
+* **Solution**: Ensure the `--max-turns` flag inside the support library's `build_readonly_dispatch` (in `github_lifecycle.py`) is set to at least `15` turns for complex scans. If you see an issue report "Successfully enriched" but its body is still filled with TBD boilerplate, inspect the underlying Claude Code terminal logs or run the raw dispatch command manually with `--max-turns 15` to see if it was cut off.
+
+### 4. Fast-Tier LLM Outages (Degraded Mode)
+
+* **Problem**: Fast metadata classification and research passes rely on the `model_fast` configuration tier. If the active engine for that model (such as `opencode` or `antigravity`) experiences a transient server outage or credentials error, the backlog tool will gracefully degrade to title-only boilerplate.
+* **Solution**: Temporarily re-route the `model_fast` configuration to a robust, fully-functional cloud engine (such as routing `model_fast` to `claude-sonnet-4-6` via the native `claude-code` harness):
+  ```bash
+  hermes config set coding.model_fast claude-sonnet-4-6
+  ```
+  This immediately bypasses the degraded engine and restores full-depth, high-fidelity research passes.
 
 ## Repository Research Notes & References
 

@@ -111,6 +111,9 @@ Read and understand the feature requirements, constraints, and acceptance criter
 ### Step 2: Explore the Codebase & Sync with Remote
 
 - **Always Synchronize with the Remote First**: Before drafting any plan, proposing next steps, or recommending PR merges, checkout the default/target branch (`main` or `master`), pull the latest changes from the remote, and query the live status of active pull requests and issues on GitHub (`gh pr list`, `gh issue list`). The user or other agents may have merged PRs or mutated issue states out-of-band since your last session.
+- **Clean Branch Hygiene & Planning File Preservation**: When transitioning from a "planning-only" phase (e.g., after a weekend code freeze) to the implementation phase, do NOT write code on top of dirty branches carrying unrelated experiments. Checkout `main`, pull the latest remote, and create a fresh working branch. To keep your drafted markdown plans and specifications immediately available on this fresh branch without bringing over unwanted draft code commits, use:
+  `git checkout <spec-branch> -- docs/hermes/<plan-files>`
+  This safely checks out only the planning documents from the old branch into your new, clean branch's working tree, keeping them staged and ready.
 - **Inspect Project Structure**: Use terminal and file tools to understand the project structure, existing patterns, and conventions.
 
 ### Step 3: Design Approach
@@ -212,6 +215,28 @@ When executing bulk backlog mutations (such as triage or enrichment across multi
 When drafting implementation plans that direct a coding engine to consume or integrate with existing utility functions, model methods, or API clients:
 - **Never Assume or Fabricate Signatures:** Do not guess, assume, or infer parameters, types, or return shapes of existing utilities (e.g. assuming `formatPickedValue(type, value)` accepts a third `options` argument). Writing incorrect method signatures in task dispatches will cause compilation failures, break TypeScript type-checking, and halt automated build execution.
 - **Verify the Codebase First:** Always read the source files containing the target functions beforehand, verify their exact signatures and arguments, and reference the correct structure explicitly inside the task dispatches to ensure the build remains perfectly green and compatible.
+
+## Handling External Peer-Reviews & Iterative Re-Planning
+
+When a user or an external peer-reviewer (like a senior lead or another agent) provides critical feedback or a post-scoring audit on your plans or specifications:
+
+1. **Deconstruct & Categorize Findings:**
+   - **Hard Blockers / Prerequisites:** Issues that intersect or compromise the core security, auth, or concurrency state (like pre-lock leaks, dev backdoors, or token races) must be resolved **before** building the feature. Extend the plan's Phase 1 to cover them.
+   - **Inline Quality Fixes:** Issues that can be solved directly within the feature's code paths (like KeyError fallbacks or cache purges) should be folded directly into the main task dispatches.
+   - **CI & Deployment Gating:** Secure the pipeline (e.g., gating deployments on test success) early to prevent broken rollout states.
+
+2. **Clean Branch Alignment:**
+   - When proceeding from a plan/review phase to implementation, checkout `main` and pull the latest remote gold standard.
+   - Delete any local merged or experimental branches to keep the git tree pristine.
+   - Create a clean new implementation branch from remote main. To preserve your drafted plans and specifications from your spec branch without bringing over unwanted draft code commits, checkout only the plans:
+     `git checkout <spec-branch> -- docs/hermes/<plan-files>`
+   - This keeps your plans staged and accessible on your clean working branch.
+
+3. **Prerequisites First, Local Verification Always:**
+   - Execute the prerequisite cleanups as standalone, focused, well-tested commits before writing any feature code.
+   - Verify every fix locally. Ensure both backend and frontend test suites are 100% green before pushing.
+
+---
 
 ## Remember
 

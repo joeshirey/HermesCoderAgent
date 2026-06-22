@@ -19,10 +19,11 @@ The coding engine has no memory between dispatches — every prompt is self-cont
 
 - Right before sending any implementation/fix task to the engine, pull matching prior lessons and append them to the prompt.
 
-**Capture (after a struggle):**
+**Capture (after a struggle or peer feedback):**
 
 - An auto-healer run that **escalated** or needed **more than one attempt**.
 - Any completed **systematic-debugger** session (reads its `.hermes-debug/<id>.json` journal).
+- **PR review feedback (inline or final comments)** containing code-style corrections, MyPy type-safety workarounds, schema refinements, or architectural feedback. Capture these lessons directly into `AGENTS.md` under `## Project memory` to prevent repeating them in future sessions.
 
 Do NOT use for:
 

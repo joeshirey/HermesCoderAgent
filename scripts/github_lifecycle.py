@@ -247,7 +247,7 @@ def build_readonly_dispatch(prompt: str, engine: str, repo: str) -> str:
         return (
             f"claude -p '{escaped}' "
             f"--allowedTools 'Read,Bash' "
-            f"--max-turns 8 "
+            f"--max-turns 15 "
             f"--dangerously-skip-permissions{model_flag}"
         )
     elif engine == "antigravity":

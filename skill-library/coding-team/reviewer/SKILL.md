@@ -42,6 +42,8 @@ Apply this lens for final code review, PR preparation, and synthesizing feedback
 
 - [ ] **Trace Code End-to-End**: Follow logic changes across all execution paths (e.g., ensuring a fix for live active games doesn't break final completed-tournament logic or run on unintended stages). Ask: "When else does this code execute?"
 - [ ] **Address All Known Gotchas**: Explicitly check the issue or specification for "Known Gotchas", warnings, or latent edge cases. Treat each as a strict requirement.
+- [ ] **Type-Safe ORM Mutations**: Verify that database deletes and updates are fully compliant with strict static type-checkers (e.g. MyPy). Avoid calling `.rowcount` directly on generic `db.execute(delete(...))` results since they are typed as `Result[Any]`. Instead, query the target ORM record and call `await db.delete(record)` natively.
+- [ ] **Symmetric Resource-Level Access**: Check that any custom resource-level guards (such as checking `tournament.is_side_bet`) are enforced symmetrically for all user types, not just guests, to prevent standard users from creating orphan registrations on main-season assets.
 - [ ] Code does what the spec says
 - [ ] Edge cases handled
 - [ ] Error handling appropriate (not over-engineered)
@@ -49,6 +51,7 @@ Apply this lens for final code review, PR preparation, and synthesizing feedback
 ### Readability & Documentation
 
 - [ ] **Update Documentation and Docstrings**: Verify that module-level docstrings, function comments, and API descriptions are fully updated to match new behavioral changes (e.g., if changing from a greedy solver to combinatorial, update the module docs).
+- [ ] **Docstring & Annotations Ordering**: Verify that `from __future__ import annotations` is placed *after* the module-level docstring, not before it. Putting the future import on line 1 prevents Python from recognizing a subsequent triple-quoted string as the module-level docstring.
 - [ ] Clear naming (variables, functions, classes)
 - [ ] Consistent style with existing codebase
 - [ ] No unnecessary complexity or abstraction
@@ -56,6 +59,8 @@ Apply this lens for final code review, PR preparation, and synthesizing feedback
 ### Maintainability
 
 - [ ] **Uniform Return Contracts**: Ensure all function return paths return consistently structured, typed, and sorted collections across all branches.
+- [ ] **Alembic Migration Defaults**: Validate that all new boolean column schemas in Alembic migration files utilize `server_default=sa.text("false")` to remain SQLite-safe and match codebase conventions.
+- [ ] **Cross-Dialect Database Compatibility**: Ensure default values inside migrations use SQLAlchemy native function builders (like `sa.func.now()`) instead of dialect-specific text (like `sa.text("(CURRENT_TIMESTAMP)")`) so they compile correctly across SQLite and PostgreSQL.
 - [ ] DRY — no unnecessary duplication
 - [ ] YAGNI — no speculative features
 - [ ] Single responsibility — each function/class does one thing
@@ -73,6 +78,13 @@ Apply this lens for final code review, PR preparation, and synthesizing feedback
 3. Compile findings into a single review
 4. Categorize issues: **blocking** (must fix), **suggestion** (should fix), **nit** (nice to fix)
 5. Report to user with clear summary
+
+### Capturing PR Review Feedback & Inline Comments
+
+When a human reviewer provides feedback, inline comments, or corrections on a Pull Request:
+- **Be Active in Learning**: Treat every piece of PR feedback, even minor nits or structural considerations, as a high-leverage learning opportunity. Never treat a pass as a neutral outcome.
+- **Durable Capture**: Immediately document the lessons (underlying reasons, pitfalls, and corrected code/conventions) inside the repository's `AGENTS.md` (under `## Project memory (hermes)`) so they persist across all subsequent development sessions on this project.
+- **Update Global Skills**: If the feedback reveals a general, project-agnostic best practice (e.g., MyPy result-rowcount typing, Python docstring ordering, or Alembic database default functions), update or patch the corresponding global skill (like `alembic-database-migrations`, `reviewer`, or `codebase-hardening`) immediately to make your entire agent swarm smarter across all projects.
 
 ## Dispatch Template
 
