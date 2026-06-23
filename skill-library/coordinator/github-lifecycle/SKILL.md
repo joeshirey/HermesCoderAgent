@@ -160,6 +160,8 @@ JSON output (`--json`):
 
 ## Safety and Hygiene
 
+- **Agent Tooling Output Leak Prevention:** Never commit internal agent-tracking or diagnostic artifacts (such as plans under `.hermes/` or generated lessons-learned files under `.hermes-lessons/`). Proactively verify that both `.hermes/` and `.hermes-lessons/` are ignored in the repository's `.gitignore` file so they remain strictly local and untracked. If they are not ignored, add them to `.gitignore` before making any commits, and delete any accidental trace of them from git with `git rm --cached`.
+- **Strict Fork Targeting Rule:** When working inside a fork, never push or submit Pull Requests directly to the upstream parent repository under any circumstance without explicit user instructions. When creating a PR via the GitHub CLI, explicitly target the fork using `--repo <fork-owner>/<repo>` (e.g. `gh pr create --repo <fork-owner>/<repo>`) so the PR is created on the fork and does not go upstream. Each fork's `AGENTS.md` names its upstream.
 - **Strict Fork Targeting Rule:** When working inside a fork, never push or submit Pull Requests directly to the upstream parent repository under any circumstance without explicit user instructions. When creating a PR via the GitHub CLI, explicitly target the fork using `--repo <fork-owner>/<repo>` (e.g. `gh pr create --repo <fork-owner>/<repo>`) so the PR is created on the fork and does not go upstream. Each fork's `AGENTS.md` names its upstream.
 - **Strict Rule:** Never, under any circumstance, push code directly to the `main` or `master` branch. Always checkout a feature branch, commit, push, and open a Pull Request. Any merging into `main` must be performed solely by the user or with explicit prior permission.
 - Always use the humanizer gateway to polish PR/commit descriptions before delivery.
@@ -170,6 +172,12 @@ JSON output (`--json`):
 This tool calls `humanizer_gateway.humanize()` internally for commit (`commit`) and PR (`pr`) prose, so the Humanize workflow step is already covered for git deliverables. The LLM pass runs through the default harness (`claude -p`); if that harness is unavailable, the rule-filtered text is still used. Commits are always authored as the repository owner only — any `Co-Authored-By` trailer is stripped.
 
 ## Pitfalls & Best Practices
+
+### The "Unpushed Local Commits" PR Block
+
+- **The Issue**: When attempting to open a Pull Request (`pr` subcommand) on a feature branch, the command fails with a GraphQL error from the GitHub API: `GraphQL: Head sha can't be blank, Base sha can't be blank, No commits between main and feat/...`.
+- **The Cause**: The PR creation tool relies on the remote branch having commits to compare against the base. If you committed your changes locally but forgot to run the `push` subcommand first, the remote branch has no commits compared to the base, resulting in a blank head/base comparison.
+- **The Solution**: Always run the `push` subcommand on your feature branch to upload your latest local commits to the remote origin *before* running the `pr` subcommand.
 
 ### Parallel Migration Heads and Alembic Linearization (Rebase Conflict)
 
@@ -207,3 +215,21 @@ When coordinating multi-stage coding tasks (where some steps write configuration
      git branch -f main origin/main
      ```
      This safely and non-destructively aligns your local `main` branch with `origin/main` without affecting your checked out workspace, bypassing any destructive command safety gates!
+
+### GraphQL Blank SHA PR Failure (Push-Before-PR Enforcer)
+
+- **The Issue**: Calling `gh pr create` or the lifecycle `pr` subcommand before the local branch and its commits are pushed to the remote `origin` repository results in a cryptic API block: `GraphQL: Head sha can't be blank, Base sha can't be blank, No commits between main and <branch>`. This occurs because the remote GitHub GraphQL API cannot find or compare the commit references.
+- **The Solution**: Always verify and guarantee that local commits are successfully pushed (`github_lifecycle.py push`) to create the remote branch and sync refs *before* executing the PR subcommand (`github_lifecycle.py pr`).
+
+### Stale Main Branch Forking (PR Duplication Trap)
+
+- **The Issue**: Creating a feature branch from a local `main` branch that is out-of-sync or stale relative to `origin/main` often leads to duplicate pull requests or massive rebase conflicts. This occurs when upstream has squash-merged preceding branches (such as the preceding opt-in UI task) into main, which your local main lacks.
+- **The Solution**: Always explicitly synchronize your local `main` branch before branching or rebasing your development work:
+  ```bash
+  git checkout main && git pull
+  ```
+  If your branch was already created from a stale main, check it out and rebase it directly onto the updated main:
+  ```bash
+  git checkout <branch> && git rebase main
+  ```
+  Git will automatically detect and skip any duplicate commits that have already been squash-merged into main, aligning your branch perfectly.

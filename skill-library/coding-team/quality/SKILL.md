@@ -42,8 +42,10 @@ Apply this lens when reviewing code for spec compliance, testing adequacy, and q
 - [Mocking Lazy-Loaded Subprocesses & Component Isolation](references/mocking_lazy_loaded_subprocesses.md) — How to prevent test hangs and timeout failures by isolating lazy-loaded subprocess components.
 - [PostgreSQL Parity Testing & Agent Masking Workarounds](references/postgresql_parity_and_masking.md) — How to handle strict database referential integrity, async driver parametrization, and agent secret-masking bypasses during testing.
 - [SQLAlchemy Boolean Query Linter Workarounds](references/sqlalchemy_boolean_query_linter_fix.md) — How to avoid silent query failures and broken tests from naive Python linter E712 (Ruff/Flake8) auto-fixes inside where() clauses.
+- [Pytest-Asyncio Non-Async Test Marker Warnings](references/pytest_asyncio_marker_warnings.md) — How to prevent and resolve pytest-asyncio warnings when mixing sync and async tests.
 - [CI Code Coverage Gates & Scheduler Integration Testing](references/ci_coverage_gates_and_integration_testing.md) — How to configure automated coverage checks and write deep async poller integration tests.
 - [Frontend Router & Query Testing Best Practices](references/frontend_router_and_query_testing.md) — How to handle React Router context, React Query async loading timing, and duplicate text element assertions.
+- [Time-Sensitive & Business Constraint Testing Pitfalls](references/time_and_constraint_testing_pitfalls.md) — How to prevent mock data pre-lockout failures and satisfy model/route-level validation constraints.
 
 ## Spec Compliance Review
 
