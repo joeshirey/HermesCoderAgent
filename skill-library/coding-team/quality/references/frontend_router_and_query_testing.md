@@ -273,3 +273,18 @@ vi.mock('../hooks/useAuth', () => ({
   }),
 }));
 ```
+
+---
+
+## 10. Testing Negative Assertion Guards (False Positive Assertions)
+
+### The Symptom
+A test is written to verify that clicking a disabled or restricted element does *not* trigger a state change or UI expansion (e.g., verifying that a row expansion guard prevents displaying sub-details). The test passes successfully, but if you deliberately break the guard in the component, the test *still* passes.
+
+### The Cause
+This occurs when the negative assertion verifies the absence of content that would be absent anyway, regardless of whether the guard succeeded. For example, if you click a disabled row for "Player Five" (which has no sub-details or is empty) and assert that "Tiger Woods" (who belongs only to "Player One's" details) is not in the document, the assertion will always hold true because "Tiger Woods" is not associated with "Player Five" in the first place! The test can never fail, creating a false sense of security.
+
+### The Solution
+When asserting negative behaviors or verifying guards that block UI updates:
+1. **Target Content Specific to the Action:** Assert the absence of content that *only* exists or *would* appear if the action on that specific element succeeded (e.g., a specific sub-detail or unique ID belonging to that exact row's model).
+2. **Deliberately Red-Green Verify:** Temporarily comment out or invert the guard in your component code to verify that the test fails (RED state) before confirming it passes when the guard is active (GREEN state).
