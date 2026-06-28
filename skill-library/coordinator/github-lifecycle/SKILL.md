@@ -171,7 +171,14 @@ JSON output (`--json`):
 
 This tool calls `humanizer_gateway.humanize()` internally for commit (`commit`) and PR (`pr`) prose, so the Humanize workflow step is already covered for git deliverables. The LLM pass runs through the default harness (`claude -p`); if that harness is unavailable, the rule-filtered text is still used. Commits are always authored as the repository owner only — any `Co-Authored-By` trailer is stripped.
 
-## Pitfalls & Best Practices
+### Pitfalls & Best Practices
+
+### Formatting Violations and Remote CI Failures (Ruff/Linter Block)
+
+- **The Issue**: When making edits or modifications (especially inside backend python files, migrations, or tests), minor spacing or structure adjustments (like splitting a line that actually fits within the maximum characters limit) can violate the strict linter/formatter (such as `ruff format`). While python tests might pass perfectly locally, pushing code with a formatting or lint violation will immediately break remote CI build steps (e.g., Google Cloud Build `backend-ci` step) and block deployment.
+- **The Solution**:
+  1. Never bypass formatting. Always run the linter and formatter directly on modified directories (e.g. `ruff check --fix . && ruff format .` inside `backend/`) before staging/committing.
+  2. Proactively run the unified local CI validation script (`bash scripts/local-ci.sh`) to ensure the entire codebase is 100% clean and passing all lints, formatting, and type-checks before pushing any feature branches or opening non-draft PRs.
 
 ### The "Unpushed Local Commits" PR Block
 
