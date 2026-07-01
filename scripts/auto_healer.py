@@ -36,6 +36,10 @@ except ImportError:
 
     def resolve_tier_model(tier) -> str:
         return ""
+try:
+    from loop_events import emit as _emit_loop_event
+except ImportError:
+    _emit_loop_event = None
 
 
 @dataclass
@@ -326,6 +330,33 @@ def build_dispatch_command(prompt: str, engine: str, repo: str,
         )
 
 
+def build_dispatch_argv(prompt: str, engine: str, repo: str,
+                        max_turns: int = 10, model: str = "") -> list:
+    """List-form (execve) equivalent of build_dispatch_command, for auto_healer's
+    own heal loop. Runs with shell=False so the fix prompt — which embeds parsed
+    test/lint/build output from the repo under repair — can never be interpreted
+    as shell syntax, no manual quote-escaping required.
+
+    parallel_dispatch keeps using the shell-string build_dispatch_command above:
+    it composes that string with timeout/worktree/backgrounding wrappers that
+    need a shell.
+    """
+    m = model or resolve_claude_model()
+    if engine == "antigravity":
+        timeout_go = f"{max(max_turns * 30, 180)}s"
+        return ["agy", "-p", prompt, "--dangerously-skip-permissions",
+                "--print-timeout", timeout_go, "--add-dir", repo]
+    if engine == "opencode":
+        return ["opencode", "run", prompt, "--dir", repo,
+                "--dangerously-skip-permissions", "-m", "google-vertex/gemini-3.5-flash"]
+    # claude-code, and fallback for any unknown engine
+    argv = ["claude", "-p", prompt, "--allowedTools", "Read,Edit,Bash",
+            "--max-turns", str(max_turns), "--dangerously-skip-permissions"]
+    if m:
+        argv += ["--model", m]
+    return argv
+
+
 # -- Main heal loop --
 
 def heal(repo: str, check_cmd: str, engine: str,
@@ -346,14 +377,13 @@ def heal(repo: str, check_cmd: str, engine: str,
         # Model ladder: early attempts run the standard tier; the final
         # attempt (last stop before human escalation) bumps to premium.
         tier = "premium" if attempt_num == max_attempts else "standard"
-        cmd = build_dispatch_command(prompt, engine, repo,
-                                     max_turns=10 + (attempt_num * 5),
-                                     model=resolve_tier_model(tier))
+        argv = build_dispatch_argv(prompt, engine, repo,
+                                   max_turns=10 + (attempt_num * 5),
+                                   model=resolve_tier_model(tier))
 
         try:
             fix_result = subprocess.run(
-                cmd,
-                shell=True,
+                argv,
                 cwd=repo,
                 capture_output=True,
                 text=True,
@@ -425,7 +455,7 @@ def generate_escalation_report(report: HealReport) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Auto-heal failed checks")
-    parser.add_argument("--repo", required=True, help="Project repository path")
+    parser.add_argument("--repo", required=True, help="Project repository path (local filesystem path, NOT a gh owner/repo slug)")
     parser.add_argument("--check", required=True, help="Check command to run (e.g., 'pytest -x')")
     parser.add_argument("--engine", required=True,
                         choices=["claude-code", "antigravity", "opencode"],
@@ -437,9 +467,10 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     args = parser.parse_args()
 
-    repo = os.path.abspath(args.repo)
-    if not os.path.isdir(repo):
-        print(f"Error: repository path does not exist: {repo}", file=sys.stderr)
+    from repo_paths import resolve_repo_path
+    repo = resolve_repo_path(args.repo)
+    if not repo:
+        print(f"Error: repository path does not exist: {args.repo}", file=sys.stderr)
         sys.exit(2)
 
     report = heal(
@@ -449,6 +480,17 @@ def main():
         max_attempts=args.max_attempts,
         check_timeout=args.check_timeout,
     )
+
+    # Durable outcome trail for loop_health.py (reports otherwise only reach
+    # stdout). Best-effort.
+    if _emit_loop_event is not None:
+        try:
+            _emit_loop_event(
+                "heal", repo=str(repo), status=report.status,
+                attempts=len(report.attempts), engine=args.engine,
+                check=args.check[:80])
+        except Exception:
+            pass
 
     if args.json:
         print(json.dumps(report.as_dict(), indent=2))

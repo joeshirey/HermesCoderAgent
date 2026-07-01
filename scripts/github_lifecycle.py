@@ -51,6 +51,10 @@ try:
 except ImportError:
     def resolve_tier_model(tier) -> str:
         return ""
+try:
+    from review_receipts import verify as _verify_review
+except ImportError:
+    _verify_review = None
 
 
 AUTONOMY_LEVELS = ["gated", "push-draft", "full"]
@@ -713,6 +717,22 @@ def cmd_push(args, repo: str) -> tuple:
                    "intended change before pushing so nothing is left off the remote."),
         ), 1
 
+    # Final-review chokepoint. The SOUL workflow says "never push without the
+    # final-review gate"; this makes it mechanical. Refuse unless a fresh
+    # pass/fixed receipt authorizes the current HEAD (see review_receipts.py).
+    # --final-review-ok is the logged escape hatch for genuinely review-exempt
+    # pushes (e.g. a re-push of an already-reviewed branch after a rebase).
+    if _verify_review is not None and not getattr(args, "final_review_ok", False):
+        ok, detail = _verify_review(repo)
+        if not ok:
+            return ActionResult(
+                "blocked", "push",
+                error=(f"Final-review gate: {detail}. Run "
+                       "`final_review.py review --repo <repo>` (it records a receipt on "
+                       "pass/fixed), then push. On a deliberate review-exempt push, "
+                       "re-run with --final-review-ok."),
+            ), 1
+
     if autonomy == "gated" and not args.confirm:
         return ActionResult(
             "awaiting_confirmation", "push",
@@ -902,7 +922,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repo", required=True, help="Project repository path")
+    common.add_argument("--repo", required=True, help="Project repository path (local filesystem path, NOT a gh owner/repo slug)")
     common.add_argument("--engine",
                         choices=["claude-code", "antigravity", "opencode"],
                         default="claude-code",
@@ -929,6 +949,10 @@ def main():
                              "gated. Use only after explicit user approval.")
     p_push.add_argument("--force", action="store_true",
                         help="Force push with lease (for rebased feature branches)")
+    p_push.add_argument("--final-review-ok", action="store_true",
+                        help="Bypass the final-review chokepoint for a deliberately "
+                             "review-exempt push (logged). Normal pushes rely on the "
+                             "receipt final_review.py writes on a pass/fixed verdict.")
 
     p_pr = sub.add_parser("pr", parents=[common], help="Open a (draft) PR (gated)")
     p_pr.add_argument("--base", help="Base branch (default: project/main)")
@@ -959,9 +983,10 @@ def main():
 
     args = parser.parse_args()
 
-    repo = os.path.abspath(args.repo)
-    if not os.path.isdir(repo):
-        print(f"Error: repository path does not exist: {repo}", file=sys.stderr)
+    from repo_paths import resolve_repo_path
+    repo = resolve_repo_path(args.repo)
+    if not repo:
+        print(f"Error: repository path does not exist: {args.repo}", file=sys.stderr)
         sys.exit(2)
 
     result, code = HANDLERS[args.command](args, repo)

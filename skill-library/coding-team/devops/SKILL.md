@@ -136,3 +136,18 @@ In open-source or shared repositories with active personal forks, release, deplo
       runs-on: ubuntu-latest
   ```
 - **Silent Skip:** This allows the pipeline to bypass the publishing or deployment steps gracefully when running under a fork's namespace, keeping the forks' actions tab clean of unnecessary false failures.
+
+### 7. Dynamic Secret Manager Version Pinning (Resolve-at-Deploy)
+
+To prevent runtime environment drifts and secure immutable rollbacks, avoid referencing the floating `latest` alias for Secret Manager secrets in production manifests. Instead, resolve and stamp concrete integer versions at deploy time:
+
+- **Service Manifests (Knative / Kubernetes):** Keep the committed source YAML as `key: latest` to maintain manual deployability. Add a CI step (e.g. Google Cloud Build using `gcloud`) that dynamically fetches the latest enabled integer version of each runtime secret:
+  ```bash
+  DB_PASSWORD_VER=$(gcloud secrets versions list db-password --filter='state:enabled' --sort-by=~createTime --limit=1 --format='value(name)')
+  ```
+  Then, use a robust Python regex one-liner to perform a targeted in-place edit in the manifest file before deployment without corrupting comments or YAML structure:
+  ```bash
+  python3 -c 'import sys, re; args = {sys.argv[i].lstrip("-").replace("-", "_"): sys.argv[i+1] for i in range(1, len(sys.argv), 2) if i+1 < len(sys.argv)}; content = open("infra/backend-service.yaml").read(); pin = lambda text, name, ver: re.sub(rf"(key:\s*)latest(\s*\n\s*name:\s*{name}\b)", rf"\g<1>{ver}\g<2>", text); [content := pin(content, name.replace("_", "-"), ver) for name, ver in args.items()]; open("infra/backend-service.yaml", "w").write(content)' --db-password "$DB_PASSWORD_VER" --jwt-secret-key "$JWT_SECRET_KEY_VER"
+  ```
+- **One-Shot Jobs (Database Migrations):** Symmetrically resolve active versions inside the execution step and pass them directly as a pinned parameter string (e.g., `--set-secrets=DB_PASSWORD=db-password:$$DB_PASSWORD_VER`).
+- **Build-Time Limitations:** Note that secrets injected at build-time (e.g., `availableSecrets` in Cloud Build to populate frontend environment variables during compilation) are resolved at build-trigger initialization—before any build steps run. These are out of scope for deploy-time step pinning and can be left as `latest` with a clarifying documentation comment.

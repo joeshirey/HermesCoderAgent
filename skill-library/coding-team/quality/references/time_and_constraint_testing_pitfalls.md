@@ -72,3 +72,88 @@ for g in golfers:
         json={"value": 2},
     )
 ```
+
+---
+
+## 3. Frontend Component Clock Mocking (Vitest / Jest)
+
+### The Symptom
+Frontend test suites that render date-sensitive elements (such as a lock deadline widget, side-bets action button, or signup countdown) pass when written, but suddenly fail weeks or months later once the real-world calendar moves past the hardcoded test deadlines (known as a "test time-bomb").
+
+```
+AssertionError: expected "Picks open soon" but got "Picks locked"
+```
+
+### The Cause
+The component uses dynamic client-side dates (e.g. `new Date()`) to determine whether actions are active, comparing the *actual real execution time* of the test runner against the mock tournament schedule. If the tournament's lock date is hardcoded to `2026-06-29` and the test runs in July 2026, the real-world clock has passed the deadline, causing different UI branches to execute.
+
+### The Solution
+Use Vitest or Jest system clock mock utilities to pin the runner's execution date to a safe, deterministic point *before* your mock data's locking threshold. Always clean up the mocked clock in `afterEach` to avoid drifting subsequent test blocks.
+
+#### Vitest Implementation
+```typescript
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { SideBetsWidget } from './SideBetsWidget';
+
+describe('SideBetsWidget Time-Sensitive Rendering', () => {
+  beforeEach(() => {
+    // 1. Enable fake timers
+    vi.useFakeTimers();
+    // 2. Set the system clock to a deterministic date/time
+    vi.setSystemTime(new Date('2026-06-28T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    // 3. Restore the real-world clock
+    vi.useRealTimers();
+  });
+
+  it('renders "Picks open soon" before the lock deadline has passed', () => {
+    const mockTournament = {
+      picksLockAt: '2026-06-29T18:00:00Z', // 1 day in the mocked future
+      status: 'pending',
+    };
+    render(<SideBetsWidget tournament={mockTournament} />);
+    expect(screen.getByText(/Picks open soon/i)).toBeInTheDocument();
+  });
+});
+
+---
+
+## 4. Negative Assertion Guard Validation Pitfall
+
+### The Symptom
+A test that asserts that a negative guard is functional (e.g., verifying that clicking a disabled or locked row *does not* expand its details, or a guest user *does not* see admin components) passes successfully, but a future refactor breaks the guard in production and the test *still* passes.
+
+### The Cause
+The negative assertion is too generic and is satisfied by the default absence of the queried element, even if the element was never rendered under any circumstances. For example, asserting that clicking a disabled row does not show "Golfer Breakdown" by calling:
+```typescript
+expect(screen.queryByText(/Golfer Breakdown/i)).not.toBeInTheDocument();
+```
+will pass even if the row expansion was successful, if the expanded content did not contain the text "Golfer Breakdown" or if "Golfer Breakdown" is absent on the page entirely.
+
+### The Solution
+Always assert the absence of content that is **uniquely specific** to that interactive target, and where possible, perform a control assertion that verifies the content *does* appear when the action is valid.
+1. **Control Assert (Positive check):** Verify that clicking an *enabled* row successfully renders the specific detail content. This proves the querying mechanism and content exist in the DOM.
+2. **Target Assert (Negative check):** Verify the absence of the specific row-level details (e.g. searching for the specific golfer's name seeded *only* in that row) rather than a global page text label.
+
+```typescript
+// Avoid asserting on a generic label that might be absent anyway
+// queryByText(/Golfer Breakdown/) could be absent due to a rendering bug elsewhere
+
+// 1. Positive Control Check
+render(<LeaderboardRow golfer="Tiger Woods" disabled={false} />);
+await userEvent.click(screen.getByRole('button'));
+expect(screen.getByText(/Tiger Woods/i)).toBeInTheDocument();
+
+// 2. Precise Negative Check
+cleanup();
+render(<LeaderboardRow golfer="Tiger Woods" disabled={true} />);
+await userEvent.click(screen.getByRole('button'));
+expect(screen.queryByText(/Tiger Woods/i)).not.toBeInTheDocument(); // Tiger Woods is specific to this row's details
+```
+
+```
+
+```

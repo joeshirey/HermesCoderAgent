@@ -100,6 +100,45 @@ def _engine_for_model(model: str) -> str:
     return "opencode" if model.startswith("gemini") else "claude-code"
 
 
+# Canonical claude-code command builder + tool-name mapping, shared by the
+# coordinator's list-form dispatchers (harness_llm text passes, final_review,
+# pr_review_cycle) so --allowedTools naming and the flag shape live in ONE place.
+# (auto_healer uses a shell-string builder for parallel_dispatch composition and
+# is intentionally left separate.)
+_CLAUDE_TOOL_MAP = {
+    "read": "ReadFile", "write": "WriteFile", "edit": "EditFile",
+    "bash": "Bash", "glob": "Glob", "grep": "Grep",
+}
+
+
+def map_claude_tools(tools: str) -> str:
+    """Map canonical lowercase tool names to Claude Code's exact tool names.
+    Unknown names pass through unchanged (so already-correct names are safe)."""
+    out = []
+    for part in (tools or "").split(","):
+        p = part.strip()
+        if p:
+            out.append(_CLAUDE_TOOL_MAP.get(p.lower(), p))
+    return ",".join(out)
+
+
+def build_claude_cmd(prompt: str, *, tools: str = "", max_turns: Optional[int] = None,
+                     model: str = "") -> list:
+    """Build a list-form `claude -p` command. `tools` (if given) becomes
+    --allowedTools after name-mapping; `model` (already resolved by the caller)
+    becomes --model. Flag shape matches the prior per-script builders exactly."""
+    cmd = ["claude", "-p", prompt]
+    mapped = map_claude_tools(tools)
+    if mapped:
+        cmd += ["--allowedTools", mapped]
+    if max_turns is not None:
+        cmd += ["--max-turns", str(max_turns)]
+    cmd += ["--dangerously-skip-permissions"]
+    if model:
+        cmd += ["--model", model]
+    return cmd
+
+
 def _build_cmd(prompt: str, engine: str, repo: Optional[str],
                model: str = "") -> list:
     """Build a list-form (no shell) command for a single text-in/text-out
@@ -120,13 +159,7 @@ def _build_cmd(prompt: str, engine: str, repo: Optional[str],
         return cmd
     # claude-code (default). --max-turns 2 is the hard safety valve; no
     # --allowedTools so it answers as plain text without wandering the FS.
-    cmd = ["claude", "-p", prompt,
-           "--max-turns", "2",
-           "--dangerously-skip-permissions"]
-    m = model or resolve_claude_model()
-    if m:
-        cmd += ["--model", m]
-    return cmd
+    return build_claude_cmd(prompt, max_turns=2, model=model or resolve_claude_model())
 
 
 def harness_generate(

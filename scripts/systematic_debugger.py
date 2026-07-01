@@ -673,16 +673,17 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--bug", help="Bug description to investigate")
     group.add_argument("--resume", help="Resume from an existing debug journal (bug ID)")
-    parser.add_argument("--repo", required=True, help="Project repository path")
+    parser.add_argument("--repo", required=True, help="Project repository path (local filesystem path, NOT a gh owner/repo slug)")
     parser.add_argument("--engine", required=True,
                         choices=["claude-code", "antigravity", "opencode"],
                         help="Active coding engine harness")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     args = parser.parse_args()
 
-    repo = os.path.abspath(args.repo)
-    if not os.path.isdir(repo):
-        print(f"Error: repository path does not exist: {repo}", file=sys.stderr)
+    from repo_paths import resolve_repo_path
+    repo = resolve_repo_path(args.repo)
+    if not repo:
+        print(f"Error: repository path does not exist: {args.repo}", file=sys.stderr)
         sys.exit(2)
 
     if args.resume:

@@ -349,6 +349,13 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
   ```
   This immediately bypasses the degraded engine and restores full-depth, high-fidelity research passes.
 
+### 6. Repository Path Format Error
+
+* **Problem**: Running commands with a remote repository shorthand (e.g., `--repo username/reponame`) returns an error like:
+  `Error: repository path does not exist: /Users/you/Code/GitHub/myproject/username/reponame`
+* **Root Cause**: The `--repo` parameter expects the **absolute local filesystem path** of the repository (e.g., `/Users/you/Code/GitHub/myproject`), not the GitHub shorthand string.
+* **Solution**: Always pass the absolute local filesystem path of the repository to the `--repo` option.
+
 ## Repository Research Notes & References
 
 Per-repo backlog research (file paths, schema details, architectural pitfalls discovered during triage) is **project memory** and lives in each repo at `docs/hermes/backlog-research.md`, linked from that repo's `AGENTS.md`. Consult it when triaging or grooming that repo's backlog; write new research findings there, not into this skill.

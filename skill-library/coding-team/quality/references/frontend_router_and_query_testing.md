@@ -288,3 +288,104 @@ This occurs when the negative assertion verifies the absence of content that wou
 When asserting negative behaviors or verifying guards that block UI updates:
 1. **Target Content Specific to the Action:** Assert the absence of content that *only* exists or *would* appear if the action on that specific element succeeded (e.g., a specific sub-detail or unique ID belonging to that exact row's model).
 2. **Deliberately Red-Green Verify:** Temporarily comment out or invert the guard in your component code to verify that the test fails (RED state) before confirming it passes when the guard is active (GREEN state).
+
+---
+
+## 11. Asserting Responsive Tailwind Variants (Breakpoint Prefix Pitfall)
+
+### The Symptom
+A test is written to verify that a mobile responsive layout hides or limits an element (e.g., using `max-h-full sm:max-h-[85vh]`). However, when asserting the presence of the class string:
+```typescript
+expect(panel.className).toContain('max-h-[85vh]');
+```
+The test passes, but in reality, the modal is displaying full height (`max-h-full`) on mobile, which violates the mobile spec!
+
+### The Cause
+Using a broad `.toContain('max-h-[85vh]')` matches any substring inside the class attribute. If the actual class list is `max-h-full sm:max-h-[85vh]`, the substring `'max-h-[85vh]'` matches the desktop responsive variant `sm:max-h-[85vh]` perfectly. Because jsdom does not evaluate media queries or compute layout, the test passes successfully, giving false confidence that the restriction applies globally rather than only on desktop.
+
+### The Solution
+When testing responsive Tailwind layouts in jsdom, always include the full breakpoint prefix in your class assertions:
+```typescript
+// Assert the mobile-first class
+expect(panel.className).toContain('max-h-full');
+
+// Assert the desktop responsive class explicitly with its breakpoint prefix
+expect(panel.className).toContain('sm:max-h-[85vh]');
+
+// Assert the exact unprefixed class is NOT present to prevent global overrides
+expect(panel.className).not.toContain(' max-h-[85vh]');
+```
+By explicitly asserting both the mobile-first behavior and the prefixed desktop override, you ensure that the component styling maintains correct responsive behavior across viewports.
+
+---
+
+## 12. Extracting Duplicated Complex Assertions (Dry Test Sweeps)
+
+### The Symptom
+Testing multiple paths that lead to the same complex UI element (such as testing both the Reply Composer and the Edit Message forms opening the same Giphy Search Modal) results in large, copy-pasted blocks of DOM traversal and layout class assertions. This duplicates logic, bloats the test file, and makes future design updates highly tedious to maintain.
+
+### The Cause
+Both flows open the exact same shared sub-component under the hood, but because they mount in different parent contexts (e.g., different forms or overlays), developers copy-paste the entire validation chain to confirm the layout constraints hold in both places.
+
+### The Solution
+Extract the complex DOM traversal and structural assertions into a dedicated, reusable verification helper function within the test file. This keeps the test suite DRY, ensures absolute consistency across execution paths, and simplifies future class/layout changes:
+
+```typescript
+const verifyGiphyModalLayout = (headingText = 'Search Giphy GIFs 🎬') => {
+  const heading = screen.getByText(headingText);
+  const panel = heading.parentElement!.parentElement!;
+  
+  // Assert outer container constraints
+  expect(panel.className).toContain('overflow-hidden');
+  expect(panel.className).toContain('max-h-full');
+  
+  // Assert search row styling
+  const searchInput = screen.getByRole('textbox', { name: 'Search Giphy query' });
+  const searchRow = searchInput.parentElement!;
+  expect(searchRow.className).toContain('shrink-0');
+  
+  // Assert scroll wrapper styling
+  const innerWrapper = searchRow.nextElementSibling as HTMLElement;
+  expect(innerWrapper.className).toContain('flex-1');
+  expect(innerWrapper.className).toContain('min-h-0');
+  expect(innerWrapper.className).toContain('overflow-y-auto');
+};
+
+// In your test cases:
+it('keeps modal within layout constraints in the compose flow', async () => {
+  // Open modal in compose flow...
+  verifyGiphyModalLayout();
+});
+
+it('keeps modal within layout constraints in the edit flow', async () => {
+  // Open modal in edit flow...
+  verifyGiphyModalLayout();
+});
+```
+
+---
+
+## 13. React Testing Library `waitFor` Hangs with Vitest Fake Timers
+
+### The Symptom
+After enabling fake timers in a test suite using `vi.useFakeTimers()`, tests that call `waitFor` or `waitForElementToBeRemoved` suddenly time out (e.g. after 5000ms) even though all mocks are configured correctly and the exact same tests pass perfectly with real timers.
+
+### The Cause
+React Testing Library's asynchronous waiters (like `waitFor`) rely on real timing functions (specifically `setTimeout` and `setInterval`) to poll the DOM for changes over time. When `vi.useFakeTimers()` is invoked without arguments, Vitest fakes **all** timing APIs (`setTimeout`, `setInterval`, `clearTimeout`, `clearInterval`, `Date`, etc.). Because the fake clock does not advance automatically during the synchronous execution of `waitFor`, the polling intervals never fire, causing the test to freeze and time out.
+
+### The Solution
+Instead of faking all timers globally, instruct Vitest to fake **only** the `Date` class. This pins the system clock for logic-heavy calculations (like `new Date()`) while leaving real scheduling timers untouched, allowing `waitFor`'s polling mechanism to execute normally on the real clock:
+
+```typescript
+beforeEach(() => {
+  // Fake ONLY the system clock/Date, leaving setTimeout/setInterval intact
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-06-28T12:00:00Z'));
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  // Restore real timers after each test case
+  vi.useRealTimers();
+});
+```

@@ -1488,7 +1488,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--repo", required=True, help="Project repository path")
+    common.add_argument("--repo", required=True, help="Project repository path (local filesystem path, NOT a gh owner/repo slug)")
     common.add_argument("--json", action="store_true", help="Output as JSON")
 
     mut = argparse.ArgumentParser(add_help=False)
@@ -1570,9 +1570,10 @@ def main():
 
     args = parser.parse_args()
 
-    repo = os.path.abspath(args.repo)
-    if not os.path.isdir(repo):
-        print(f"Error: repository path does not exist: {repo}", file=sys.stderr)
+    from repo_paths import resolve_repo_path
+    repo = resolve_repo_path(args.repo)
+    if not repo:
+        print(f"Error: repository path does not exist: {args.repo}", file=sys.stderr)
         sys.exit(2)
 
     if not is_opted_in(repo):

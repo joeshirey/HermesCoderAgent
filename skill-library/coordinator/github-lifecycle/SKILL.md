@@ -48,6 +48,10 @@ Commit (local; drafts + humanizes the message from the staged diff):
 terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine opencode --branch '<branch>' --json", workdir="~/.hermes-coder", timeout=600)
 ```
 
+> **`--repo` is a local filesystem path** (e.g. `/Users/you/Code/GitHub/myproject`), **NOT**
+> the `gh` `--repo <owner>/<repo>` slug. Never append `<owner>/<repo>` to the path — passing
+> `/Users/.../myproject/you/myproject` makes the command error out (`repository path does not exist`).
+
 Message drafting is a support pass — `--engine opencode` (Gemini Flash) is the default for `commit`/`pr`; if opencode is unavailable, fall back to `--engine claude-code` (the tool also degrades to a deterministic message on its own).
 
 ```
@@ -87,7 +91,16 @@ touching nothing remote:
   remote. Commit everything intended first.
 
 A raw `git push` via the terminal bypasses all of this — don't do it. If you have rebased a feature branch, run `push` with the `--force` flag instead, which translates into a safe, tracking `git push --force-with-lease`. Never force-push on protected branches, and only force-push feature branches after explicit rebase coordination or user instruction.
-user explicitly instructs it.
+
+### Amending and Force-Pushing to Update Active PRs
+
+If a commit message needs to be corrected (e.g. to conform to conventional commits, adjust authorship, or add a missing `Closes #N` footer) after the branch has already been pushed and a Draft/Open PR is active:
+1. **Amend Locally**: Run `git commit --amend` with the correct `-m` message and `--author="the repository owner <joe1888@gmail.com>"` to ensure proper author alignment and conventional formatting.
+2. **Force-Push Safely**: Run the lifecycle push command with the `--force` flag:
+   ```bash
+   python3 ~/.hermes-coder/scripts/github_lifecycle.py push --repo "<project-dir>" --force --json
+   ```
+   This automatically applies `--force-with-lease` tracking under the hood to safely update the remote branch and the active GitHub PR without breaking the tree.
 
 Open PR (gated; draft unless autonomy=full and `--ready`). **Always pass `--issue <N>` when the
 work resolves a backlog issue** — it adds `Closes #N` to the PR body so GitHub closes the
@@ -129,6 +142,14 @@ Never push code or merge commits directly to the `main` branch under any circums
 - `ci-status` returns the current state immediately and exits — use it for a quick check.
 - `ci-watch` blocks, polling every `ci_poll_interval` seconds until CI is terminal or `ci_watch_timeout` is hit.
 - When either returns `"status": "ready_for_merge"`, alert the user that the PR is green and mergeable. **Never merge it yourself.**
+
+### Infrastructure and Billing Failures
+
+If remote CI checks fail, do not immediately assume it is a code or test defect:
+1. **Analyze the exact cause:** Use `gh pr checks <PR_NUM>` and `gh run view <RUN_ID>` to inspect the failure logs.
+2. **Detect platform/billing blocks:** Look for indicators like `"The job was not started because recent account payments have failed or your spending limit needs to be increased"` or general GitHub Actions system outages.
+3. **Verify locally:** Execute the full backend and frontend test suites locally (e.g., `PYTHONPATH=. pytest` and `npm run test`) to confirm correctness.
+4. **Report clearly:** If local tests are 100% green and the failure is proven to be a platform-level/billing issue, report this finding to the user. This gives them the confidence to perform a safe manual merge regardless of the remote red check.
 
 ## Pitfalls & Critical Verification
 
@@ -175,10 +196,23 @@ This tool calls `humanizer_gateway.humanize()` internally for commit (`commit`) 
 
 ### Formatting Violations and Remote CI Failures (Ruff/Linter Block)
 
-- **The Issue**: When making edits or modifications (especially inside backend python files, migrations, or tests), minor spacing or structure adjustments (like splitting a line that actually fits within the maximum characters limit) can violate the strict linter/formatter (such as `ruff format`). While python tests might pass perfectly locally, pushing code with a formatting or lint violation will immediately break remote CI build steps (e.g., Google Cloud Build `backend-ci` step) and block deployment.
+- **The Issue**: When making edits or modifications (especially inside backend python files, migrations, or tests), minor spacing or structure adjustments (like splitting a line that actually fits within the maximum characters limit) can violate the strict linter/formatter (such as `ruff format`). While python tests might pass perfectly locally, pushing code with a formatting or lints violation will immediately break remote CI build steps (e.g., Google Cloud Build `backend-ci` step) and block deployment. This is especially true for tests (e.g., `backend/tests/test_forums_api.py`) which can easily be neglected during development but are still strictly checked by CI.
+- **The Multi-line Loop Pitfall**: Inside Python test suites (e.g. `test_side_bets_api.py`), writing a multiline loop statement like:
+  ```python
+  for u in (test_user, user_b):
+      db_session.add(
+          TournamentRegistration(tournament_id=locked_side_bet.id, user_id=u.id)
+      )
+  ```
+  will fail `ruff format --check` because of split lines that can easily fit on a single line, even though local `pytest` executes it perfectly. Writing it as a clean single-line statement resolves the linter check:
+  ```python
+  for u in (test_user, user_b):
+      db_session.add(TournamentRegistration(tournament_id=locked_side_bet.id, user_id=u.id))
+  ```
 - **The Solution**:
-  1. Never bypass formatting. Always run the linter and formatter directly on modified directories (e.g. `ruff check --fix . && ruff format .` inside `backend/`) before staging/committing.
+  1. Never bypass formatting. Always run the linter and formatter directly on modified directories (e.g. `ruff check --fix . && ruff format .` inside `backend/`) before staging/committing. Ensure all test suite files and newly created helper files are formatted as well.
   2. Proactively run the unified local CI validation script (`bash scripts/local-ci.sh`) to ensure the entire codebase is 100% clean and passing all lints, formatting, and type-checks before pushing any feature branches or opening non-draft PRs.
+  3. If auto-merge is active, the main branch will break if a PR carries formatting violations. Double-check all modified files (via `git status` or `git diff`) to guarantee zero unformatted files reach the remote.
 
 ### The "Unpushed Local Commits" PR Block
 
@@ -228,15 +262,17 @@ When coordinating multi-stage coding tasks (where some steps write configuration
 - **The Issue**: Calling `gh pr create` or the lifecycle `pr` subcommand before the local branch and its commits are pushed to the remote `origin` repository results in a cryptic API block: `GraphQL: Head sha can't be blank, Base sha can't be blank, No commits between main and <branch>`. This occurs because the remote GitHub GraphQL API cannot find or compare the commit references.
 - **The Solution**: Always verify and guarantee that local commits are successfully pushed (`github_lifecycle.py push`) to create the remote branch and sync refs *before* executing the PR subcommand (`github_lifecycle.py pr`).
 
-### Stale Main Branch Forking (PR Duplication Trap)
+### Stale Main Branch Forking & Grouped Issues Workflow (PR Duplication Trap)
 
-- **The Issue**: Creating a feature branch from a local `main` branch that is out-of-sync or stale relative to `origin/main` often leads to duplicate pull requests or massive rebase conflicts. This occurs when upstream has squash-merged preceding branches (such as the preceding opt-in UI task) into main, which your local main lacks.
-- **The Solution**: Always explicitly synchronize your local `main` branch before branching or rebasing your development work:
-  ```bash
-  git checkout main && git pull
-  ```
-  If your branch was already created from a stale main, check it out and rebase it directly onto the updated main:
-  ```bash
-  git checkout <branch> && git rebase main
-  ```
-  Git will automatically detect and skip any duplicate commits that have already been squash-merged into main, aligning your branch perfectly.
+- **The Issue**: Creating a feature branch from a local `main` branch that is out-of-sync or stale relative to `origin/main` often leads to duplicate pull requests or massive rebase conflicts. This is especially critical when implementing groups/bundles of issues (e.g. Issues 229, 230, and 231) where multiple dependencies intersect.
+- **The Solution**:
+  1. **Strict Local Main Synchronization**: Always explicitly synchronize your local `main` branch with the remote origin before branching, rebasing, or executing any group tasks:
+     ```bash
+     git checkout main && git fetch --all --prune && git pull origin main
+     ```
+  2. **Branch Rebase & Group Alignment**: If your branch was already created from a stale main, check it out and rebase it directly onto the updated main:
+     ```bash
+     git checkout <branch> && git rebase main
+     ```
+     This automatically skips duplicate squash-merged commits.
+  3. **Grouped Issue Verification**: When tackling multiple issues together, verify the entire cluster is cohesive and tests are passing as a whole. Never allow uncoordinated migrations or conflicting routes to co-exist on the same feature branch without integrated unit tests.
