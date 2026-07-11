@@ -37,6 +37,11 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent))
 from auto_healer import build_dispatch_command
 
+try:
+    from dispatch_receipts import record as _record_dispatch
+except ImportError:
+    _record_dispatch = None
+
 
 # -- Config defaults (overridable via ~/.hermes-coder/config.yaml) --
 
@@ -260,6 +265,15 @@ def dispatch_one(task: TaskSpec, worktree_path: str, branch: str,
         duration = time.monotonic() - start
         output = (proc.stdout + "\n" + proc.stderr).strip()
         status = "success" if proc.returncode == 0 else "failed"
+        if status == "success" and _record_dispatch is not None:
+            try:
+                # Receipt for the worktree (commits made there) — the merge-back
+                # into the base repo is a coordinator git action, not a lifecycle
+                # commit, so no base-repo receipt is needed.
+                _record_dispatch(worktree_path, engine=engine,
+                                 source="parallel_dispatch")
+            except Exception:
+                pass
         return DispatchResult(
             id=task.id, branch=branch, worktree=worktree_path, status=status,
             returncode=proc.returncode, duration_s=duration,

@@ -15,6 +15,7 @@ Stdlib-only (no pip dependencies).
 
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -100,6 +101,33 @@ def _engine_for_model(model: str) -> str:
     return "opencode" if model.startswith("gemini") else "claude-code"
 
 
+def _configured_claude_models() -> set:
+    """All claude model ids that appear in config (claude_model + every tier)."""
+    blk = _read_coding_block()
+    models = {blk.get("claude_model", "").strip()}
+    models |= {blk.get(f"model_{t}", "").strip() for t in TIERS}
+    return {m for m in models if m and not m.startswith("gemini")}
+
+
+def sanitize_claude_model(model: str) -> str:
+    """Reject claude model ids that don't come from config. Freehand ids are
+    how a recent project dispatch failed three times in a row
+    (claude-3-5-sonnet, claude-sonnet-4-5@20250929, ... -- none deployed);
+    substituting the configured model keeps the dispatch on a known-good id.
+    Empty stays empty (claude CLI default); gemini-* passes through untouched
+    (routed to opencode, validated there)."""
+    m = (model or "").strip()
+    if not m or m.startswith("gemini"):
+        return m
+    known = _configured_claude_models()
+    if m in known:
+        return m
+    fallback = resolve_claude_model()
+    print(f"harness_llm: unknown claude model '{m}' not in config coding.* "
+          f"-- substituting '{fallback or '(claude CLI default)'}'", file=sys.stderr)
+    return fallback
+
+
 # Canonical claude-code command builder + tool-name mapping, shared by the
 # coordinator's list-form dispatchers (harness_llm text passes, final_review,
 # pr_review_cycle) so --allowedTools naming and the flag shape live in ONE place.
@@ -134,6 +162,7 @@ def build_claude_cmd(prompt: str, *, tools: str = "", max_turns: Optional[int] =
     if max_turns is not None:
         cmd += ["--max-turns", str(max_turns)]
     cmd += ["--dangerously-skip-permissions"]
+    model = sanitize_claude_model(model)
     if model:
         cmd += ["--model", model]
     return cmd

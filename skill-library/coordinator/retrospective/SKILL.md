@@ -42,13 +42,13 @@ terminal(command="python3 ~/.hermes-coder/scripts/retrospective.py inject --repo
 Capture from an auto-heal report (pipe the healer's `--json` straight in):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/auto_healer.py --repo '<project-dir>' --check '<test cmd>' --engine <active-harness> --json | python3 ~/.hermes-coder/scripts/retrospective.py capture --source heal --repo '<project-dir>' --task '<task>' --json", workdir="~/.hermes-coder", timeout=600)
+terminal(command="python3 ~/.hermes-coder/scripts/auto_healer.py --repo '<project-dir>' --check '<test cmd>' --engine claude-code --json | python3 ~/.hermes-coder/scripts/retrospective.py capture --source heal --repo '<project-dir>' --task '<task>' --json", workdir="~/.hermes-coder", timeout=600)
 ```
 
 Capture from a debugger journal:
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/retrospective.py capture --source debug --bug-id '<id>' --repo '<project-dir>' --engine <active-harness> --json", workdir="~/.hermes-coder", timeout=60)
+terminal(command="python3 ~/.hermes-coder/scripts/retrospective.py capture --source debug --bug-id '<id>' --repo '<project-dir>' --engine claude-code --json", workdir="~/.hermes-coder", timeout=60)
 ```
 
 List stored lessons (inspection):

@@ -51,9 +51,16 @@ the merge review. `max_turns`: optional (default 15).
 
 ## Dispatch
 
+A batch runs multiple full coding-engine passes and will not finish inside a blocking terminal
+timeout — run it in the background and act on the completion notification:
+
 ```
-terminal(command="echo '<spec-json>' | python3 ~/.hermes-coder/scripts/parallel_dispatch.py --repo '<project-dir>' --engine <active-harness> --max-parallel 3 --json", workdir="~/.hermes-coder", timeout=1800)
+terminal(command="echo '<spec-json>' | python3 ~/.hermes-coder/scripts/parallel_dispatch.py --repo '<project-dir>' --engine claude-code --max-parallel 3 --json", workdir="~/.hermes-coder", background=true)
 ```
+
+**`--engine` is always `claude-code` for implementation batches.** Never pass a model ID from
+memory — models come only from `coding.*` in `config.yaml`. If the claude dispatch fails,
+diagnose the harness; do not downgrade implementation work to a Gemini engine.
 
 Dry run (validate + print the planned worktree paths and dispatch commands; creates/dispatches
 nothing — use it to sanity-check a batch before committing engine time):

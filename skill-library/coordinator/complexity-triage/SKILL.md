@@ -53,6 +53,10 @@ The script outputs JSON:
 | L | New feature, major refactor, multi-file integration | Full plan, full skill injection, cloud model |
 | XL | Architecture change, system redesign | Full plan, architect review, cloud model |
 
+**Every size dispatches to the coding engine.** Size never licenses the coordinator to edit repo
+files itself — an S task is a *small dispatch*, not an inline edit. (2026-07-10: inline
+implementation by the coordinator burned two full turn budgets and shipped below the quality bar.)
+
 ## Fallback
 
 The triage LLM pass runs through the active coding harness (resolved from `--engine`/`coding.default_engine`). If the harness is unavailable, heuristic-only triage still works (exit code 3). If heuristics are inconclusive and no LLM is available, the script defaults to M sizing with cloud routing.

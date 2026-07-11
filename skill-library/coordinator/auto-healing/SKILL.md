@@ -30,15 +30,20 @@ Do NOT trigger for:
 
 ## Dispatch
 
+This runs full check-fix-recheck cycles and routinely exceeds a blocking terminal timeout —
+run it in the background and act on the completion notification:
+
 ```
 terminal(
-    command="python3 ~/.hermes-coder/scripts/auto_healer.py --repo '<project-dir>' --check '<test command>' --engine <active-harness> --json",
+    command="python3 ~/.hermes-coder/scripts/auto_healer.py --repo '<project-dir>' --check '<test command>' --engine claude-code --json",
     workdir="~/.hermes-coder",
-    timeout=600
+    background=true
 )
 ```
 
-The `--engine` flag must match the active session harness (claude-code, antigravity, or opencode).
+**`--engine` is always `claude-code` for fix passes.** Never pass a model ID from memory — models
+come only from `coding.*` in `config.yaml`. If the claude dispatch fails, diagnose the harness;
+do not downgrade code fixes to a Gemini engine.
 
 The `--check` command is the exact command that failed:
 

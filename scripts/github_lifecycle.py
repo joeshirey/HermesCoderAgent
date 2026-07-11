@@ -55,6 +55,18 @@ try:
     from review_receipts import verify as _verify_review
 except ImportError:
     _verify_review = None
+try:
+    from dispatch_receipts import verify as _verify_dispatch
+except ImportError:
+    _verify_dispatch = None
+
+
+def _doc_only_diff(staged: list) -> bool:
+    """Staged paths a coordinator may author itself (project memory, docs,
+    backlog opt-in) — commits touching ONLY these skip the dispatch gate."""
+    return bool(staged) and all(
+        p in ("AGENTS.md", ".hermes-backlog.yaml") or p.startswith("docs/")
+        for p in staged)
 
 
 AUTONOMY_LEVELS = ["gated", "push-draft", "full"]
@@ -651,6 +663,29 @@ def cmd_commit(args, repo: str) -> tuple:
             hygiene=hygiene,
         ), 1
 
+    # Dispatch-receipt gate: code changes must come from a recorded
+    # coding-engine dispatch (dispatch_receipts.py). SOUL says "never write
+    # code directly"; twice (2026-07-10/11) the coordinator authored the
+    # deliverable inline anyway, so the rule is mechanical now. Doc-only
+    # commits (project memory / docs / backlog opt-in) are sanctioned
+    # coordinator writes and pass through. --dispatch-ok is the logged escape
+    # hatch for deliberately hand-approved edits.
+    staged = _staged_files(repo)
+    if (_verify_dispatch is not None and not getattr(args, "dispatch_ok", False)
+            and not _doc_only_diff(staged)):
+        ok, detail = _verify_dispatch(repo)
+        if not ok:
+            return ActionResult(
+                "blocked", "commit",
+                error=(f"Dispatch gate: {detail}. Code commits require a fresh "
+                       "coding-engine dispatch receipt — route the implementation "
+                       "through dispatch_coder.py / auto_healer.py / the final-review "
+                       "fix pass instead of editing files inline. For deliberately "
+                       "hand-approved edits, re-run with --dispatch-ok."),
+                command_preview=[
+                    "python3 github_lifecycle.py commit ... --dispatch-ok  # override"],
+            ), 1
+
     message = args.message or _draft_commit_message(repo, args.engine)
     if not message.strip():
         message = _fallback_commit_message(repo)
@@ -939,6 +974,11 @@ def main():
     p_commit.add_argument("--skip-hygiene", action="store_true",
                           help="Bypass the secret/junk pre-commit hygiene gate (use only "
                                "for a deliberate false positive)")
+    p_commit.add_argument("--dispatch-ok", action="store_true",
+                          help="Bypass the dispatch-receipt gate for deliberately "
+                               "hand-approved edits. The normal path is the receipt a "
+                               "coding-engine dispatch records (dispatch_coder.py, "
+                               "auto_healer.py, final_review.py fix pass).")
 
     p_push = sub.add_parser("push", parents=[common], help="Push current branch (gated)")
     p_push.add_argument("--confirm", action="store_true",

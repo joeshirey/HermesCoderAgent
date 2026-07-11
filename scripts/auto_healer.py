@@ -29,17 +29,24 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
-    from harness_llm import resolve_claude_model, resolve_tier_model
+    from harness_llm import resolve_claude_model, resolve_tier_model, sanitize_claude_model
 except ImportError:
     def resolve_claude_model() -> str:
         return ""
 
     def resolve_tier_model(tier) -> str:
         return ""
+
+    def sanitize_claude_model(model: str) -> str:
+        return model
 try:
     from loop_events import emit as _emit_loop_event
 except ImportError:
     _emit_loop_event = None
+try:
+    from dispatch_receipts import record as _record_dispatch
+except ImportError:
+    _record_dispatch = None
 
 
 @dataclass
@@ -295,7 +302,7 @@ def build_dispatch_command(prompt: str, engine: str, repo: str,
                            max_turns: int = 10, model: str = "") -> str:
     """Build the CLI command for the active harness."""
     escaped = prompt.replace("'", "'\\''")
-    m = model or resolve_claude_model()
+    m = sanitize_claude_model(model) or resolve_claude_model()
     model_flag = f" --model {m}" if m else ""
 
     if engine == "claude-code":
@@ -341,7 +348,7 @@ def build_dispatch_argv(prompt: str, engine: str, repo: str,
     it composes that string with timeout/worktree/backgrounding wrappers that
     need a shell.
     """
-    m = model or resolve_claude_model()
+    m = sanitize_claude_model(model) or resolve_claude_model()
     if engine == "antigravity":
         timeout_go = f"{max(max_turns * 30, 180)}s"
         return ["agy", "-p", prompt, "--dangerously-skip-permissions",
@@ -390,6 +397,13 @@ def heal(repo: str, check_cmd: str, engine: str,
                 timeout=600,
             )
             fix_output = (fix_result.stdout + "\n" + fix_result.stderr).strip()
+            if _record_dispatch is not None:
+                try:
+                    _record_dispatch(repo, engine=engine,
+                                     model=resolve_tier_model(tier),
+                                     source="auto_healer")
+                except Exception:
+                    pass
         except subprocess.TimeoutExpired:
             fix_output = "Fix dispatch timed out after 600s"
         except OSError as e:
