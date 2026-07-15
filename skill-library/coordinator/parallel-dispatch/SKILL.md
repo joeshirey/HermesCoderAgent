@@ -55,8 +55,12 @@ A batch runs multiple full coding-engine passes and will not finish inside a blo
 timeout — run it in the background and act on the completion notification:
 
 ```
-terminal(command="echo '<spec-json>' | python3 ~/.hermes-coder/scripts/parallel_dispatch.py --repo '<project-dir>' --engine claude-code --max-parallel 3 --json", workdir="~/.hermes-coder", background=true)
+terminal(command="echo '<spec-json>' | python3 ~/.hermes-coder/scripts/parallel_dispatch.py --repo '<project-dir>' --engine claude-code --max-parallel 3 --json", workdir="~/.hermes-coder", background=true, notify_on_complete=true)
 ```
+
+**`notify_on_complete=true` is mandatory** — without it the run is silent and you end up in a
+poll-and-narrate loop that wastes turns and spams chat. Launch, END YOUR TURN, and act on the
+single completion notification. Do not poll `process` in a loop; do not narrate waits.
 
 **`--engine` is always `claude-code` for implementation batches.** Never pass a model ID from
 memory — models come only from `coding.*` in `config.yaml`. If the claude dispatch fails,

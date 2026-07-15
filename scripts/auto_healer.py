@@ -367,8 +367,13 @@ def build_dispatch_argv(prompt: str, engine: str, repo: str,
 # -- Main heal loop --
 
 def heal(repo: str, check_cmd: str, engine: str,
-         max_attempts: int = 3, check_timeout: int = 120) -> HealReport:
-    """Run the auto-heal loop. Returns a HealReport."""
+         max_attempts: int = 3, check_timeout: int = 120,
+         base_tier: str = "standard") -> HealReport:
+    """Run the auto-heal loop. Returns a HealReport.
+
+    base_tier: the tier the failing code was implemented at. Early attempts
+    heal at that tier (healing opus-authored code on sonnet wastes attempts);
+    the final attempt always bumps to premium."""
     # Initial check
     passed, output = run_checks(repo, check_cmd, check_timeout)
     if passed:
@@ -381,9 +386,10 @@ def heal(repo: str, check_cmd: str, engine: str,
     attempts = []
     for attempt_num in range(1, max_attempts + 1):
         prompt = build_fix_prompt(targets, attempt_num, attempts, repo)
-        # Model ladder: early attempts run the standard tier; the final
-        # attempt (last stop before human escalation) bumps to premium.
-        tier = "premium" if attempt_num == max_attempts else "standard"
+        # Model ladder: early attempts run at the tier that implemented the
+        # code (base_tier); the final attempt (last stop before human
+        # escalation) bumps to premium.
+        tier = "premium" if attempt_num == max_attempts else base_tier
         argv = build_dispatch_argv(prompt, engine, repo,
                                    max_turns=10 + (attempt_num * 5),
                                    model=resolve_tier_model(tier))
@@ -476,6 +482,11 @@ def main():
                         help="Active coding engine harness")
     parser.add_argument("--max-attempts", type=int, default=3,
                         help="Maximum fix attempts before escalating (default: 3)")
+    parser.add_argument("--tier", default="standard",
+                        choices=["fast", "standard", "elevated", "premium", "max"],
+                        help="Tier the failing code was implemented at; early heal "
+                             "attempts run this tier, final attempt runs premium "
+                             "(default: standard)")
     parser.add_argument("--check-timeout", type=int, default=120,
                         help="Timeout for check command in seconds (default: 120)")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
@@ -493,6 +504,7 @@ def main():
         engine=args.engine,
         max_attempts=args.max_attempts,
         check_timeout=args.check_timeout,
+        base_tier=args.tier,
     )
 
     # Durable outcome trail for loop_health.py (reports otherwise only reach

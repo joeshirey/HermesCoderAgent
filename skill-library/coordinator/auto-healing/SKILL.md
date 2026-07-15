@@ -35,15 +35,26 @@ run it in the background and act on the completion notification:
 
 ```
 terminal(
-    command="python3 ~/.hermes-coder/scripts/auto_healer.py --repo '<project-dir>' --check '<test command>' --engine claude-code --json",
+    command="python3 ~/.hermes-coder/scripts/auto_healer.py --repo '<project-dir>' --check '<test command>' --engine claude-code --tier <tier> --json",
     workdir="~/.hermes-coder",
-    background=true
+    background=true,
+    notify_on_complete=true
 )
 ```
+
+**`notify_on_complete=true` is mandatory** — without it the run is silent and you end up in a
+poll-and-narrate loop that wastes turns and spams chat. Launch, END YOUR TURN, and act on the
+single completion notification. Do not poll `process` in a loop; do not narrate waits.
 
 **`--engine` is always `claude-code` for fix passes.** Never pass a model ID from memory — models
 come only from `coding.*` in `config.yaml`. If the claude dispatch fails, diagnose the harness;
 do not downgrade code fixes to a Gemini engine.
+
+**`--tier` is the tier the failing code was implemented at** (the same tier triage set for the
+dispatch: `standard`, `elevated`, …). Early heal attempts run at that tier — healing
+opus-authored code on the standard (sonnet) tier wastes attempts — and the final attempt always
+bumps to `premium` automatically. Omitting it defaults to `standard`, which is only right for
+XS/S work.
 
 The `--check` command is the exact command that failed:
 

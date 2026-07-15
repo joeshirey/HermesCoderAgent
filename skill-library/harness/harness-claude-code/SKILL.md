@@ -46,7 +46,9 @@ hardcode a model id):
 | XS / S implementation, simple edits, fix loops | `standard` | `claude-sonnet-5` |
 | M implementation | `elevated` | `claude-opus-4-8` |
 | L / XL implementation, security-sensitive work | `premium` | `claude-opus-4-8` |
+| Hand-picked hardest case (explicit, never a routing default; NOT for security-focused work — Fable's cyber classifiers can refuse) | `max` | `claude-fable-5` |
 | Final review gate (handled by `final_review.py`) | (script-internal) | `model_premium` |
+| PR review gate (handled by `pr_review_cycle.py`) | (script-internal) | `pr_review.model` (`claude-fable-5`, opus fallback) |
 
 `--max-turns`: 10–15 for simple edits, 25 (default) for features/bug fixes, 25–40 for
 multi-file refactors or test-writing (turn starvation shows up as an abrupt halt with a

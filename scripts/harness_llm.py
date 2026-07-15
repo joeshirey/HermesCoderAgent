@@ -83,7 +83,7 @@ def resolve_claude_model() -> str:
     return _read_coding_block().get("claude_model", "").strip()
 
 
-TIERS = ("fast", "standard", "elevated", "premium")
+TIERS = ("fast", "standard", "elevated", "premium", "max")
 
 
 def resolve_tier_model(tier: Optional[str]) -> str:

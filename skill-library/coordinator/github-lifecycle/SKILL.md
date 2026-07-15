@@ -181,7 +181,10 @@ JSON output (`--json`):
 
 ## Safety and Hygiene
 
-- **Agent Tooling Output Leak Prevention:** Never commit internal agent-tracking or diagnostic artifacts (such as plans under `.hermes/` or generated lessons-learned files under `.hermes-lessons/`). Proactively verify that both `.hermes/` and `.hermes-lessons/` are ignored in the repository's `.gitignore` file so they remain strictly local and untracked. If they are not ignored, add them to `.gitignore` before making any commits, and delete any accidental trace of them from git with `git rm --cached`.
+- **Agent Tooling Output Leak Prevention & Commit Staging Pitfall:** Never commit internal agent-tracking, prompt drafts, or diagnostic artifacts (such as plans under `.hermes/`, prompt text in `.hermes-prompt-*.txt`, or PR drafts like `.hermes-draft-pr.md`/`.hermes-humanized-pr.md`).
+  - *The Pitfall:* The automated `github_lifecycle.py commit` command automatically runs a staging step. If your temporary workspace files (such as `.hermes-prompt-*.txt`, `.hermes-lessons/`, etc.) are not *already* ignored in `.gitignore`, the tool will stage and commit them.
+  - *The Solution:* Proactively check your `.gitignore` and add broad rules (`/.hermes*` or `.hermes-*`) to ignore all agent files *before* running your first commit on a branch.
+  - *Remediation:* If any agent-tracking or temporary files are accidentally tracked, remove them from the index immediately using `git rm --cached <files>` without deleting them locally, commit the deletion, and push (using `--force` if you need to clean up an active PR's files-changed tab).
 - **Strict Fork Targeting Rule:** When working inside a fork, never push or submit Pull Requests directly to the upstream parent repository under any circumstance without explicit user instructions. When creating a PR via the GitHub CLI, explicitly target the fork using `--repo <fork-owner>/<repo>` (e.g. `gh pr create --repo <fork-owner>/<repo>`) so the PR is created on the fork and does not go upstream. Each fork's `AGENTS.md` names its upstream.
 - **Strict Fork Targeting Rule:** When working inside a fork, never push or submit Pull Requests directly to the upstream parent repository under any circumstance without explicit user instructions. When creating a PR via the GitHub CLI, explicitly target the fork using `--repo <fork-owner>/<repo>` (e.g. `gh pr create --repo <fork-owner>/<repo>`) so the PR is created on the fork and does not go upstream. Each fork's `AGENTS.md` names its upstream.
 - **Strict Rule:** Never, under any circumstance, push code directly to the `main` or `master` branch. Always checkout a feature branch, commit, push, and open a Pull Request. Any merging into `main` must be performed solely by the user or with explicit prior permission.
@@ -197,6 +200,16 @@ This tool calls `humanizer_gateway.humanize()` internally for commit (`commit`) 
 ### Formatting Violations and Remote CI Failures (Ruff/Linter Block)
 
 - **The Issue**: When making edits or modifications (especially inside backend python files, migrations, or tests), minor spacing or structure adjustments (like splitting a line that actually fits within the maximum characters limit) can violate the strict linter/formatter (such as `ruff format`). While python tests might pass perfectly locally, pushing code with a formatting or lints violation will immediately break remote CI build steps (e.g., Google Cloud Build `backend-ci` step) and block deployment. This is especially true for tests (e.g., `backend/tests/test_forums_api.py`) which can easily be neglected during development but are still strictly checked by CI.
+
+### "Secure-by-Default" Settings Validation Failures in CI/CD
+
+- **The Issue**: When configuration schema classes are updated to run secure-by-default (e.g. defaulting environment settings to `"production"` and requiring live production client credentials like Google Client IDs or session keys), remote CI/CD pipelines running database migrations, tests, or linters on unset environments will crash on startup with settings validation errors (e.g. `Value error, GOOGLE_CLIENT_ID must be set in production`).
+- **The Solution**: Explicitly declare `ENVIRONMENT: test` (or another designated test/dev environment flag) within the remote pipeline's workflow configuration file (e.g., `.github/workflows/ci.yml`) under the job-level or step-level `env:` block. This safely satisfies the validation schema during automated runs without compromising fail-closed production security defaults.
+
+### Bracketed IPv6 Loopback Host Header Parsing
+
+- **The Issue**: Naively parsing the request's `Host` header via a colon split (e.g., `host.split(":")[0]` to discard port suffixes) breaks when encountering IPv6 bracket notation. For instance, `[::1]:8000` is split into `['[', '', '1]', '8000']`, yielding `[` as the host name. This causes loopback checks (such as secure cookie or CSRF bypass checks) to fail on local IPv6 environments.
+- **The Solution**: Detect brackets explicitly when parsing the `Host` header. If it starts with `"["`, locate the closing bracket `"]"` and slice `host[:close_idx + 1]` to correctly extract the loopback host (e.g. `[::1]`) before evaluating loopback/localhost status.
 - **The Multi-line Loop Pitfall**: Inside Python test suites (e.g. `test_side_bets_api.py`), writing a multiline loop statement like:
   ```python
   for u in (test_user, user_b):
@@ -276,3 +289,10 @@ When coordinating multi-stage coding tasks (where some steps write configuration
      ```
      This automatically skips duplicate squash-merged commits.
   3. **Grouped Issue Verification**: When tackling multiple issues together, verify the entire cluster is cohesive and tests are passing as a whole. Never allow uncoordinated migrations or conflicting routes to co-exist on the same feature branch without integrated unit tests.
+
+### HEAD Shift and Review Receipt Invalidation on Administrative Commits
+
+- **The Issue**: Committing any changes (even purely administrative files like `.gitignore` or documentation) after running the Final Review Gate will shift your local branch HEAD (new commit SHA). Because the Final Review receipt is bound to the exact HEAD SHA at the time of review, this new commit invalidates the receipt, and subsequent pushes via `github_lifecycle.py push` will block with a `Final-review gate` error.
+- **The Solution**:
+  1. For purely administrative, non-code changes (e.g., `.gitignore` or markdown docs additions) where the codebase has already successfully cleared a full review, use the `--final-review-ok` flag on the push command to proceed safely.
+  2. For any changes that touch code, templates, or migrations, do not bypass the gate. Re-run the Final Review Gate in `--depth light` to quickly verify the new HEAD and regenerate a valid receipt.
