@@ -217,6 +217,15 @@ When drafting implementation plans that direct a coding engine to consume or int
 - **Never Assume or Fabricate Signatures:** Do not guess, assume, or infer parameters, types, or return shapes of existing utilities (e.g. assuming `formatPickedValue(type, value)` accepts a third `options` argument). Writing incorrect method signatures in task dispatches will cause compilation failures, break TypeScript type-checking, and halt automated build execution.
 - **Verify the Codebase First:** Always read the source files containing the target functions beforehand, verify their exact signatures and arguments, and reference the correct structure explicitly inside the task dispatches to ensure the build remains perfectly green and compatible.
 
+### Planning for Database Schema Evolution & State Containment (Python/SQLAlchemy)
+
+When planning features involving database schema changes or versioned configurations:
+1. **Explicit Model Metadata Registration:** Ensure that the first task involving schema changes explicitly details importing the newly created ORM model classes into the central database base metadata registry (e.g., `app/db/base.py` or `models/__init__.py`) before running `alembic revision --autogenerate`. This guarantees Alembic detects the new tables and columns.
+2. **State Containment of Versioned Assets:** When a feature involves managing user submissions against mutable, commissioner-created definitions (such as bonus questions, weekly quizzes, or tournaments):
+   - Explicitly plan state transitions to prevent historical leakage. When a new definition is published, design endpoints to automatically demote older definitions (e.g., to `draft` or `superseded` status).
+   - Constrain aggregator queries (like leaderboards, standings, and history) to only load submissions tied to `published` or `scored` definitions.
+3. **Dynamic Calculations Over Static Invalidation:** Always default to computing stats (such as correct pick counts, win lists, and streak lengths) dynamically from raw results inside API handlers during the render pass, rather than storing compiled stats directly in database records. This avoids cache-invalidation bugs and database synchronization lags.
+
 ## Handling External Peer-Reviews & Iterative Re-Planning
 
 When a user or an external peer-reviewer (like a senior lead or another agent) provides critical feedback or a post-scoring audit on your plans or specifications:

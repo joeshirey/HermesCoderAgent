@@ -388,4 +388,51 @@ afterEach(() => {
   // Restore real timers after each test case
   vi.useRealTimers();
 });
+
+---
+
+## 14. Testing Components using React Router v6/v7 `useBlocker` (Data Router Context)
+
+### The Symptom
+When testing a component that uses navigation-blocking hooks like `useBlocker` or other router v6/v7 data-router-specific APIs, the test run crashes with:
+```
+Error: useBlocker must be used within a data router.
+```
+
+### The Cause
+Hooks like `useBlocker` depend on active navigation orchestration that only exists within a data-driven router (instantiated via `createBrowserRouter`, `createMemoryRouter`, etc.). Standard routers (like `<MemoryRouter>`) are simple wrappers that do not set up the required state machines or history contexts for blocking navigation.
+
+### The Solution
+Instead of wrapping the component in `<MemoryRouter>`, create a custom mock data-router using `createMemoryRouter` and wrap your component inside a `<RouterProvider>`. This provides a complete navigation context that fully supports `useBlocker`, `useNavigate`, and all data APIs:
+
+```typescript
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import MyComponent from "./MyComponent";
+
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) => {
+    // Wrap the children in a routed element path
+    const routes = [
+      {
+        path: "/",
+        element: <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>,
+      },
+    ];
+    // Create a real memory-backed data router
+    const router = createMemoryRouter(routes, { initialEntries: ["/"] });
+    return <RouterProvider router={router} />;
+  };
+};
+
+// In your test case, the standard render call now seamlessly supports useBlocker:
+render(<MyComponent />, { wrapper: createWrapper() });
+```
 ```
