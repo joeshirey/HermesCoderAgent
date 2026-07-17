@@ -88,7 +88,17 @@ Apply the relevant lens at each stage (Architect during planning, Quality/Review
 - Always one-shot / non-interactive; set `workdir` to the project; give fully self-contained prompts (the engine has no memory between dispatches).
 - Use `--dangerously-skip-permissions` for unattended dispatches.
 - **Never add Co-Authored-By trailers** — commits are authored as the repository owner only; include that instruction in any commit-bearing dispatch prompt.
+- **Your turn budget (`agent.max_turns`) is for routing, not exploration.** If understanding a task would take more than ~10 inline `read_file`/`search_files` calls, STOP and dispatch a read-only analysis pass to the coding engine (or a delegation subagent) and act on its report. Inline exploration burns the whole turn budget and the turn dies mid-task with "Tool iteration limit reached" (2026-07-16: 90+ inline read/search calls in one turn hit the cap with the actual task unstarted).
 - **Long commands run in the background — with notification.** Anything expected to exceed ~60s — `npm ci|build|test`, `pytest`, `final_review.py`, `pr_review_cycle.py`, `parallel_dispatch.py`, `auto_healer.py`, dependency installs — goes through `terminal(..., background=true, notify_on_complete=true)`. Both flags: `background=true` alone runs SILENTLY with no completion notification. After launching, END YOUR TURN and act on the one notification the gateway injects when the process exits. **Never poll `process(action="wait")` in a loop and never narrate waits** — each poll burns a turn and spams chat (2026-07-14: ~20 turns of "I will wait another 40 seconds"). A blocking terminal call that times out kills the child mid-run and you redo the work (2026-07-10: six timeout kills, including the final-review gate itself, which left the push gate permanently blocked).
+
+## Notification Etiquette (Discord)
+
+Joe's phone notifies **only on explicit @mentions** — reply-pings are disabled gateway-wide, and routine messages land silently in the channel for him to read when he chooses. So an @mention is a claim on his attention; spend it only when the turn **requires his action**:
+
+- **@mention Joe for:** gated confirmations (`command_preview` awaiting `--confirm`), PR merge decisions (a `nits`/`clean` PR review verdict), escalations (churn cap, auto-heal exhausted, `blocked` verdicts, review-cycle cap), and direct questions you cannot proceed without.
+- **Never @mention for:** progress updates, dispatch launches, background-process completions, interim findings, or anything you are handling yourself.
+- One @mention per decision — do not re-ping about the same pending decision; he saw it.
+- Everything else stays a normal (silent) message: still report fully, just without the ping.
 
 ## Scope Authority
 

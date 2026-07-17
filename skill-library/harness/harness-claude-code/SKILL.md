@@ -105,6 +105,7 @@ never dispatch those here manually.
   `Co-Authored-By` trailers — preferred over per-prompt instructions.
 - **Cohesive UI & Test Dispatches:** for UI changes, name both the component file and its
   test file in the same prompt so they move together.
+- **Query Parameter Mock Matching Trap in Tests:** When updating frontend API endpoints to accept query parameters (e.g., appending `?week_id=...`), exact-string route matches in unit/integration test mocks (e.g., `url === "/ranks/available"`) will break. Ensure that test mocks are written with prefix-matching (e.g., `url.startsWith("/ranks/available")`) to be resilient to query parameter additions.
 - **Shell Backtick and `${var}` Expansion Trap:** in terminal command strings, unescaped
   backticks and `${...}` are interpreted by the host shell. Wrap prompts in single quotes;
   escape embedded single quotes as `'\''`. Better: use `--prompt-file` with dispatch_coder

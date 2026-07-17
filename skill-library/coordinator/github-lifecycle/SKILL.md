@@ -137,6 +137,19 @@ Never push code or merge commits directly to the `main` branch under any circums
 
 - **Never push code or merge commits directly to the `main` or `master` branch under any circumstance without explicit user permission.** Even when correcting a merge mismatch, synchronizing missing files, or resolving repository hygiene issues, you must always open a Pull Request first or request direct confirmation before pushing to production branches.
 
+### Clean Branching and Planning File Preservation Pattern
+
+When transitioning from a planning/design phase (e.g., after an architecture review or draft plan) to the active implementation phase, do not carry over unrelated draft files or dirty experimental changes. Always begin from a clean, synchronized base:
+1. **Checkout and Pull Base Branch**: Checkout `main`, pull the latest remote changes (`git fetch --all --prune && git pull origin main`), and create a clean feature branch:
+   ```bash
+   git checkout main && git checkout -b feature/your-feature-name
+   ```
+2. **Retrieve Planning/Spec Files Only**: To keep your drafted markdown plans, specifications, or issues (which you may have written on a temporary or planning branch) immediately available on your fresh branch without bringing over unwanted experimental draft code commits, checkout *only* the plan files:
+   ```bash
+   git checkout <spec-or-planning-branch> -- .hermes/plans/ <any-spec-docs-paths>
+   ```
+   This safely brings the planning documents into your fresh branch's working copy, staging them without any dirty code carryover.
+
 ## CI monitoring
 
 - `ci-status` returns the current state immediately and exits — use it for a quick check.
