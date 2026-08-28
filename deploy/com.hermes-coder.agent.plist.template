@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  hermes-coder always-on agent (macOS LaunchAgent) — TEMPLATE.
+
+  Replace the {{PLACEHOLDERS}} with your own values, then install per deploy/README.md.
+    {{USER}}         your macOS username
+    {{HERMES_HOME}}  the hermes-coder home dir (e.g. /Users/{{USER}}/.hermes-coder)
+    {{AGENT_HOME}}   the host agent install dir (working dir + venv root)
+    {{PYTHON_BIN}}   absolute path to the agent's Python (e.g. {{AGENT_HOME}}/venv/bin/python)
+    {{BIN_PATH}}     PATH the agent should run with (venv/bin + node bin + system paths)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hermes-coder.agent</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{PYTHON_BIN}}</string>
+        <string>-m</string>
+        <string>hermes_cli.main</string>
+        <string>gateway</string>
+        <string>run</string>
+        <string>--replace</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>{{AGENT_HOME}}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>{{BIN_PATH}}</string>
+        <key>HERMES_HOME</key>
+        <string>{{HERMES_HOME}}</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>{{HERMES_HOME}}/logs/gateway.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>{{HERMES_HOME}}/logs/gateway.error.log</string>
+</dict>
+</plist>
