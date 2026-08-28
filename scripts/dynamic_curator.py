@@ -41,11 +41,27 @@ ALWAYS_CLOUD_KEYWORDS = [
     "concurrent", "async", "deadlock", "csrf", "xss", "injection",
 ]
 
+# Turn budgets are FLOORS, not targets. A run that finishes early costs
+# nothing extra; a truncated one costs MORE (median $0.96 vs $0.89) and takes
+# LONGER (3.5 vs 2.9 min) while delivering nothing usable, so raising these is
+# not a cost trade.
+#
+# Measured 2026-08-28 over 640 completing runs: median 16, p90 28, p95 30,
+# max 54. The previous values (10/15/25/40) all sat at or below p95, and
+# production cap rates tracked them directly: fast 60%, elevated 52%,
+# standard 41%, premium 32%. Cross-check: dispatch_coder's independently
+# derived DEFAULT_MAX_TURNS is 50.
+#
+# These override dispatch_coder's default because SOUL.md step 4 dispatches
+# "applying triage's turn budget". Compounding that, triage systematically
+# UNDER-sizes (13-16 of 18 golden tasks, every model), so a starved budget is
+# usually applied to work that was already called too small. eval_gate.py's
+# `routing` suite asserts these against TURN_FLOORS so they cannot drift back.
 TOOL_BUDGETS = {
-    "S":  {"max_skills": 0, "max_mcp_tools": 0, "max_turns": 10},
-    "M":  {"max_skills": 1, "max_mcp_tools": 3, "max_turns": 15},
-    "L":  {"max_skills": 3, "max_mcp_tools": 3, "max_turns": 25},
-    "XL": {"max_skills": 3, "max_mcp_tools": 5, "max_turns": 40},
+    "S":  {"max_skills": 0, "max_mcp_tools": 0, "max_turns": 25},
+    "M":  {"max_skills": 1, "max_mcp_tools": 3, "max_turns": 31},
+    "L":  {"max_skills": 3, "max_mcp_tools": 3, "max_turns": 40},
+    "XL": {"max_skills": 3, "max_mcp_tools": 5, "max_turns": 50},
 }
 
 
