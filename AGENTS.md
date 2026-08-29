@@ -9,3 +9,4 @@ Facts captured from prior agent sessions in this repo. Verify against current co
 - dispatch_coder.py: --tier alone doesn't suppress tier_randomized; use --model explicitly (e.g., --model claude-sonnet-5) to guarantee model choice.
 - Entire skill library in this profile is user-owned (created_by=None) — patch/edit refused for every skill checked. Needs `hermes curator adopt <name>` first. Also: background dispatch "exited" signals (terminal/process wait) can fire while the actual PID/claude-p children are still running — verify with `ps -p <pid>` before trusting completion.
 - Verify final-review/coding findings against actual git HEAD/diff before reporting; treat a 'fixed' verdict with 0 actual changes as blocked, not passed.
+- Amending commits invalidates SHA-pinned receipts; re-run push gates on new HEAD even if code unchanged.
