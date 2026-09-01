@@ -1,7 +1,7 @@
 ---
 name: writing-plans
 description: "Write implementation plans: bite-sized tasks for coding engine dispatch."
-version: 2.0.0
+version: 2.1.0
 author: Hermes Coder (adapted from obra/superpowers)
 license: MIT
 platforms: [linux, macos, windows]
@@ -245,6 +245,37 @@ When a user or an external peer-reviewer (like a senior lead or another agent) p
 3. **Prerequisites First, Local Verification Always:**
    - Execute the prerequisite cleanups as standalone, focused, well-tested commits before writing any feature code.
    - Verify every fix locally. Ensure both backend and frontend test suites are 100% green before pushing.
+
+---
+
+## Commit the Plan Before the First Dispatch
+
+The plan is an artifact, not a message. Write it to `docs/plans/<branch-name>.md`
+in the repo under work — slashes in the branch name flattened to hyphens, so
+`feat/live-scoring` becomes `docs/plans/feat-live-scoring.md` — and commit it on
+the feature branch **before** the first implementation dispatch, in the same
+commit as any scaffolding.
+
+Two things depend on this and neither works without it:
+
+- The final-review **spec lens** reads `docs/plans/<branch>.md` and grades the
+  diff against it under the heading *"grade the diff against this, not against
+  your own preference."* With no committed plan, the lens falls back to the
+  issue text and its fidelity verdict is really its own reading of the issue —
+  a much weaker claim than it sounds.
+- "Does the merged diff match what was agreed" is unanswerable after the fact
+  when the plan lived in coordinator session context and evaporated with it.
+
+**Amend the plan in place when implementation diverges, in the same commit as
+the divergence.** An unamended plan is worse than no plan: the fidelity lens
+grades against a stale target and reports confident findings about a design
+nobody is building any more. Amending is the sanctioned way to change course —
+the reviewer treats a plan edited within the same change set as the agreement,
+not as drift.
+
+If the work is genuinely too small to plan (S tasks), skip the plan entirely
+rather than committing a stub. An empty plan is a target that says nothing, and
+the lens will grade against it as though it did.
 
 ---
 

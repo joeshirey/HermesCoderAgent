@@ -231,8 +231,15 @@ class TestPushGuards(unittest.TestCase):
             res, code = gl.cmd_push(
                 _Args(repo=repo, autonomy="gated", confirm=False,
                       allow_protected=True, json=False), repo)
-            # Branch guard cleared by --allow-protected, but gated autonomy with no
-            # --confirm still stops the push.
+            # Branch guard cleared by --allow-protected; the review chokepoint
+            # then stops it, because this scratch repo has no receipt for HEAD.
+            self.assertNotIn("protected branch", res.error or "")
+            self.assertIn("final-review receipt", res.error or "")
+            # With the receipt gate waived, gated autonomy and no --confirm is
+            # what remains.
+            res, code = gl.cmd_push(
+                _Args(repo=repo, autonomy="gated", confirm=False,
+                      allow_protected=True, final_review_ok=True, json=False), repo)
             self.assertEqual(res.status, "awaiting_confirmation")
 
     def test_push_blocks_on_dirty_tree(self):
@@ -255,7 +262,21 @@ class TestPushGuards(unittest.TestCase):
             res, code = gl.cmd_push(
                 _Args(repo=repo, autonomy="gated", confirm=False,
                       allow_protected=False, json=False), repo)
-            # No protected/dirty block — lands on the normal gated confirmation.
+            # No protected/dirty block. A clean feature branch reaches the
+            # review chokepoint, which holds it for want of a receipt.
+            self.assertEqual(res.status, "blocked")
+            self.assertIn("final-review receipt", res.error or "")
+
+    def test_review_receipt_gate_is_the_last_thing_before_confirmation(self):
+        # Waiving the receipt must land on the gated confirmation, not on some
+        # further silent block -- otherwise the test above would pass for the
+        # wrong reason and stop proving anything about the earlier guards.
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            repo = _mkrepo(d, branch="feat/x")
+            res, code = gl.cmd_push(
+                _Args(repo=repo, autonomy="gated", confirm=False,
+                      allow_protected=False, final_review_ok=True, json=False), repo)
             self.assertEqual(res.status, "awaiting_confirmation")
 
 
