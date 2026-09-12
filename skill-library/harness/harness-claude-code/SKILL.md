@@ -20,8 +20,8 @@ terminal command, and never your own patch/write tools:
 
 ```
 terminal(
-    command="python3 ~/.hermes-coder/scripts/dispatch_coder.py --repo '<project-dir>' --tier <tier-per-size> --max-turns <N> --prompt '<self-contained task prompt>' --json",
-    workdir="~/.hermes-coder",
+    command="python3 ~/.hermes/profiles/coder/scripts/dispatch_coder.py --repo '<project-dir>' --tier <tier-per-size> --max-turns <N> --prompt '<self-contained task prompt>' --json",
+    workdir="~/.hermes/profiles/coder",
     background=true
 )
 ```

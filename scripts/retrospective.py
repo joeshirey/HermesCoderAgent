@@ -52,7 +52,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from harness_llm import harness_generate, strip_fences, HarnessUnavailable
 
 
-# -- Config defaults (overridable via ~/.hermes-coder/config.yaml) --
+# -- Config defaults (overridable via ~/.hermes/profiles/coder/config.yaml) --
 
 DEFAULT_MAX_INJECT = 3
 DEFAULT_MATCH_THRESHOLD = 0.05

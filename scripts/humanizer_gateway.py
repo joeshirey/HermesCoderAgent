@@ -39,9 +39,9 @@ from harness_llm import (
 # The LLM anti-AI pass runs through the user-selected coding harness (resolved
 # from --engine / config coding.default_engine), not a local model. See SOUL.md.
 HARNESS_TIMEOUT = 180
-VOICE_CACHE_DIR = Path.home() / ".hermes-coder" / "cache" / "voice_samples"
+VOICE_CACHE_DIR = Path.home() / ".hermes" / "profiles" / "coder" / "cache" / "voice_samples"
 VOICE_CACHE_TTL_HOURS = 24
-WRITING_SAMPLE_PATH = Path.home() / ".hermes-coder" / "writing_sample.txt"
+WRITING_SAMPLE_PATH = Path.home() / ".hermes" / "profiles" / "coder" / "writing_sample.txt"
 
 
 # ── Pattern 1: Significance inflation ──

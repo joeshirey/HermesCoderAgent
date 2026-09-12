@@ -76,25 +76,25 @@ config.yaml `github_backlog` block > hard default `gated`. In `gated`, a mutatio
 Initialize labels:
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_backlog.py init-labels --repo '<repo>' --confirm --json", workdir="~/.hermes-coder", timeout=120)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_backlog.py init-labels --repo '<repo>' --confirm --json", workdir="~/.hermes/profiles/coder", timeout=120)
 ```
 
 Create a context-rich issue (classify → draft §4 body → humanize → gated create):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_backlog.py create --repo '<repo>' --title '<title>' --task '<raw idea>' --engine <harness> --confirm --json", workdir="~/.hermes-coder", timeout=600)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_backlog.py create --repo '<repo>' --title '<title>' --task '<raw idea>' --engine <harness> --confirm --json", workdir="~/.hermes/profiles/coder", timeout=600)
 ```
 
 Enrich an existing thin issue (preserves the human objective):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_backlog.py enrich --repo '<repo>' --issue <n> --engine <harness> --confirm --json", workdir="~/.hermes-coder", timeout=600)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_backlog.py enrich --repo '<repo>' --issue <n> --engine <harness> --confirm --json", workdir="~/.hermes/profiles/coder", timeout=600)
 ```
 
 Nightly triage — sweep & batch-enrich untriaged issues (classify → research → rewrite → gated apply):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_backlog.py triage --repo '<repo>' --engine <harness> --limit 20 --confirm --json", workdir="~/.hermes-coder", timeout=1200)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_backlog.py triage --repo '<repo>' --engine <harness> --limit 20 --confirm --json", workdir="~/.hermes/profiles/coder", timeout=1200)
 ```
 
 **Candidate rule:** an open issue is untriaged when it lacks any `type:*` label **OR** carries
@@ -109,7 +109,7 @@ exclusive: applying a new state clears any prior one (e.g. triage adds `backlog:
 Weekly grooming — four analysis vectors over open issues → one digest → gated apply:
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_backlog.py groom --repo '<repo>' --engine <harness> --confirm --json", workdir="~/.hermes-coder", timeout=1200)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_backlog.py groom --repo '<repo>' --engine <harness> --confirm --json", workdir="~/.hermes/profiles/coder", timeout=1200)
 ```
 
 **The four vectors** (`--skip-bottlenecks/--skip-dedup/--skip-decompose/--skip-stale` toggle each):
@@ -135,8 +135,8 @@ bottleneck elevations and stale *warnings* still apply. Never deletes, never mer
 Read-only helpers (no gating):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_backlog.py list --repo '<repo>' --json", workdir="~/.hermes-coder", timeout=60)
-terminal(command="python3 ~/.hermes-coder/scripts/github_backlog.py status --repo '<repo>' --issue <n> --json", workdir="~/.hermes-coder", timeout=60)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_backlog.py list --repo '<repo>' --json", workdir="~/.hermes/profiles/coder", timeout=60)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_backlog.py status --repo '<repo>' --issue <n> --json", workdir="~/.hermes/profiles/coder", timeout=60)
 ```
 
 Flags: `--autonomy`, `--confirm`, `--dry-run`, `--engine` (coding harness for research drafting +
@@ -176,7 +176,7 @@ scheduling is environment-specific, so the user wires it. A typical nightly swee
 
 ```
 # 02:13 nightly — bounded, gated; emits a digest the user reviews before --confirm
-13 2 * * *  cd ~/.hermes-coder && python3 scripts/github_backlog.py triage --repo '<repo>' --limit 20 --json >> ~/.hermes-coder/logs/triage.log 2>&1
+13 2 * * *  cd ~/.hermes/profiles/coder && python3 scripts/github_backlog.py triage --repo '<repo>' --limit 20 --json >> ~/.hermes/profiles/coder/logs/triage.log 2>&1
 ```
 
 On macOS prefer `launchd`; in a Hermes session a cron block can be used if `approvals.cron_mode` is
@@ -191,7 +191,7 @@ caveat). A typical Monday-morning sweep (system cron):
 
 ```
 # Mondays 09:07 — weekly groom, bounded + gated; digest only until --confirm
-7 9 * * 1  cd ~/.hermes-coder && python3 scripts/github_backlog.py groom --repo '<repo>' --json >> ~/.hermes-coder/logs/groom.log 2>&1
+7 9 * * 1  cd ~/.hermes/profiles/coder && python3 scripts/github_backlog.py groom --repo '<repo>' --json >> ~/.hermes/profiles/coder/logs/groom.log 2>&1
 ```
 
 In default `gated` the job emits a digest and **writes nothing** — the user reviews bottleneck
@@ -245,7 +245,7 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
 * **Problem**: When a repository has a large backlog of untriaged or "thin" boilerplate issues (e.g., 20+), running them sequentially using standard tools can still be slow and easily interrupted, and doing them in a single batch command is highly susceptible to total timeout failure (since writes only commit at the very end).
 * **Solution**:
   * **For Triage**: Create and run a lightweight, self-healing Python wrapper (like `triage_loop.py`) that executes `triage --limit 1 --confirm --json` inside an unbuffered loop (using `python3 -u`). This commits each triaged issue incrementally to the remote and logs progress in real-time.
-  * **For Enrichment**: For issues already carrying metadata labels but lacking technical context (such as thin boilerplate issues with `_TBD_` markers), use the included `scripts/enrich_loop.py` wrapper. This automatically queries GitHub for any open issues with `_TBD_` bodies, runs `enrich --issue <n> --confirm` on each sequentially, and logs results cleanly to `~/.hermes-coder/logs/enrich_loop.log`.
+  * **For Enrichment**: For issues already carrying metadata labels but lacking technical context (such as thin boilerplate issues with `_TBD_` markers), use the included `scripts/enrich_loop.py` wrapper. This automatically queries GitHub for any open issues with `_TBD_` bodies, runs `enrich --issue <n> --confirm` on each sequentially, and logs results cleanly to `~/.hermes/profiles/coder/logs/enrich_loop.log`.
   * **Asynchronous Execution**: Always run these loop scripts as asynchronous background terminal tasks (`background=true, notify_on_complete=true`) so they run completely autonomously in the background without blocking the parent turn or triggering a foreground terminal timeout.
 
 ### 5. Degraded Triage/Enrichment & opencode/Vertex Failures

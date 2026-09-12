@@ -13,8 +13,8 @@ auto-approved. Vaulting a Tier 2/3 source requires an explicit --confirm, becaus
 there is no automated auditor yet -- a human must review the source first.
 
 Global store (tools are shared across repos):
-    registry: ~/.hermes-coder/vetted_tools.json
-    vault:    ~/.hermes-coder/vetted_vault/<name>/
+    registry: ~/.hermes/profiles/coder/vetted_tools.json
+    vault:    ~/.hermes/profiles/coder/vetted_vault/<name>/
 
 Usage:
     python3 vetted_vault.py classify --source <path> [--origin <org>]
@@ -53,9 +53,9 @@ from pathlib import Path
 from typing import Optional
 
 
-# -- Config defaults (overridable via ~/.hermes-coder/config.yaml) --
+# -- Config defaults (overridable via ~/.hermes/profiles/coder/config.yaml) --
 
-HERMES_HOME = Path.home() / ".hermes-coder"
+HERMES_HOME = Path.home() / ".hermes" / "profiles" / "coder"
 REGISTRY_PATH = HERMES_HOME / "vetted_tools.json"
 VAULT_DIR = HERMES_HOME / "vetted_vault"
 ARCHIVE_DIR = VAULT_DIR / ".archive"

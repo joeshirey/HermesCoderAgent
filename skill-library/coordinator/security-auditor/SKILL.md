@@ -36,13 +36,13 @@ The auditor **never executes** the source it reviews. Execution happens later, s
 ## Dispatch
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/security_auditor.py --source '<path>' --json", workdir="~/.hermes-coder", timeout=120)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/security_auditor.py --source '<path>' --json", workdir="~/.hermes/profiles/coder", timeout=120)
 ```
 
 Static-only (no LLM pass):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/security_auditor.py --source '<path>' --static-only --json", workdir="~/.hermes-coder", timeout=30)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/security_auditor.py --source '<path>' --static-only --json", workdir="~/.hermes/profiles/coder", timeout=30)
 ```
 
 Flags: `--engine` (coding harness for the LLM pass; default `coding.default_engine`), `--model`

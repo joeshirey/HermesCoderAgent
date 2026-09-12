@@ -22,7 +22,7 @@ def main():
     parser.add_argument("--confirm", action="store_true", default=True, help="Actually apply mutations to GitHub")
     args = parser.parse_args()
 
-    cmd_path = "/Users/you/.hermes-coder/scripts/github_backlog.py"
+    cmd_path = "/Users/you/.hermes/profiles/coder/scripts/github_backlog.py"
     print(f"Starting incremental triage loop for repo: {args.repo}...")
 
     for i in range(args.limit):

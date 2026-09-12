@@ -50,7 +50,7 @@ class TestFabricationGuard(unittest.TestCase):
             shutil.rmtree(path, ignore_errors=True)
 
     def test_first_party_root_allowed(self):
-        # A path under ~/.hermes-coder/skills is accepted without trusted_local.
+        # A path under ~/.hermes/profiles/coder/skills is accepted without trusted_local.
         root = skill_ingest._LOCAL_SOURCE_ROOTS[0]
         src = root / "_test_fab_guard_tmp"
         _write_skill(src)

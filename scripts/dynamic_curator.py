@@ -29,9 +29,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 from harness_llm import harness_generate, strip_fences, HarnessUnavailable, resolve_gemini_model
 
 
-# -- Config defaults (overridable via ~/.hermes-coder/config.yaml) --
+# -- Config defaults (overridable via ~/.hermes/profiles/coder/config.yaml) --
 
-DEFAULT_SKILLS_DIR = str(Path.home() / ".hermes-coder" / "skills")
+DEFAULT_SKILLS_DIR = str(Path.home() / ".hermes" / "profiles" / "coder" / "skills")
 DEFAULT_MODEL = "gemma4:latest"
 CLOUD_MODEL = resolve_gemini_model()
 LOCAL_SIZES = {"S"}

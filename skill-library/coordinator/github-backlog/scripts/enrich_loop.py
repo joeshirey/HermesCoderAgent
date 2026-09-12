@@ -6,8 +6,8 @@ import time
 import os
 
 repo = os.getcwd()
-cmd_path = os.path.expanduser("~/.hermes-coder/scripts/github_backlog.py")
-log_file = os.path.expanduser("~/.hermes-coder/logs/enrich_loop.log")
+cmd_path = os.path.expanduser("~/.hermes/profiles/coder/scripts/github_backlog.py")
+log_file = os.path.expanduser("~/.hermes/profiles/coder/logs/enrich_loop.log")
 
 # Ensure the logs directory exists
 os.makedirs(os.path.dirname(log_file), exist_ok=True)

@@ -66,9 +66,9 @@ from harness_llm import resolve_engine  # noqa: E402
 from github_lifecycle import _read_flat_yaml_value  # noqa: E402
 
 
-# -- Config defaults (overridable via ~/.hermes-coder/config.yaml) --
+# -- Config defaults (overridable via ~/.hermes/profiles/coder/config.yaml) --
 
-HERMES_HOME = Path.home() / ".hermes-coder"
+HERMES_HOME = Path.home() / ".hermes" / "profiles" / "coder"
 INDEX_CACHE_DIR = HERMES_HOME / "skills" / ".hub" / "index-cache"
 CONFIG_PATH = HERMES_HOME / "config.yaml"
 

@@ -45,7 +45,7 @@ Precedence: `--autonomy` flag > `<repo>/.hermes-github.yaml` (`autonomy:`) > `co
 Commit (local; drafts + humanizes the message from the staged diff):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine opencode --branch '<branch>' --json", workdir="~/.hermes-coder", timeout=600)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine opencode --branch '<branch>' --json", workdir="~/.hermes/profiles/coder", timeout=600)
 ```
 
 > **`--repo` is a local filesystem path** (e.g. `/Users/you/Code/GitHub/myproject`), **NOT**
@@ -74,7 +74,7 @@ are never flagged. On a `blocked` result, do not push — resolve the hygiene is
 Push (gated — add `--confirm` only after user approval; pass `--force` when updating a rebased feature branch):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py push --repo '<project-dir>' --force --json", workdir="~/.hermes-coder", timeout=180)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py push --repo '<project-dir>' --force --json", workdir="~/.hermes/profiles/coder", timeout=180)
 ```
 
 **Always push through this tool — never a raw `git push`.** The `push` subcommand enforces two
@@ -98,7 +98,7 @@ If a commit message needs to be corrected (e.g. to conform to conventional commi
 1. **Amend Locally**: Run `git commit --amend` with the correct `-m` message. Leave authorship alone — `--amend` preserves the existing author, and the repository's configured identity is the source of truth. If an amend must restate it explicitly, read it from the config rather than hardcoding a name or address: `--author="$(git config user.name) <$(git config user.email)>"`.
 2. **Force-Push Safely**: Run the lifecycle push command with the `--force` flag:
    ```bash
-   python3 ~/.hermes-coder/scripts/github_lifecycle.py push --repo "<project-dir>" --force --json
+   python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py push --repo "<project-dir>" --force --json
    ```
    This automatically applies `--force-with-lease` tracking under the hood to safely update the remote branch and the active GitHub PR without breaking the tree.
 
@@ -111,14 +111,14 @@ yields nothing (the issue silently stays open), and a bare embedded digit like `
 matched. So don't rely on inference — thread the known issue number through explicitly.
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine opencode --base main --issue <N> --json", workdir="~/.hermes-coder", timeout=180)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine opencode --base main --issue <N> --json", workdir="~/.hermes/profiles/coder", timeout=180)
 ```
 
 CI status (one-shot) / CI watch (blocking):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py ci-status --repo '<project-dir>' --json", workdir="~/.hermes-coder", timeout=60)
-terminal(command="python3 ~/.hermes-coder/scripts/github_lifecycle.py ci-watch --repo '<project-dir>' --json", workdir="~/.hermes-coder", timeout=1900)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py ci-status --repo '<project-dir>' --json", workdir="~/.hermes/profiles/coder", timeout=60)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py ci-watch --repo '<project-dir>' --json", workdir="~/.hermes/profiles/coder", timeout=1900)
 ```
 
 ## The gated confirmation flow

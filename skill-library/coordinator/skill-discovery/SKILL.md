@@ -70,20 +70,20 @@ skills are auto-approved and need no discovery, but the discover run still happe
 Discover ranked candidates (read-only, no writes):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/skill_discovery.py discover --task '<task summary>' --json", workdir="~/.hermes-coder", timeout=30)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/skill_discovery.py discover --task '<task summary>' --json", workdir="~/.hermes/profiles/coder", timeout=30)
 ```
 
 Vet (fetch → audit → reputation-gated vault → Tier-gated sandbox) the top candidate; `--confirm`
 required to vault a known/untrusted source; trusted sources auto-vault:
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/skill_discovery.py vet --task '<t>' [--all] [--confirm] [--dry-run] --json", workdir="~/.hermes-coder", timeout=600)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/skill_discovery.py vet --task '<t>' [--all] [--confirm] [--dry-run] --json", workdir="~/.hermes/profiles/coder", timeout=600)
 ```
 
 Emit the per-harness injection spec for an approved vaulted skill:
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/skill_discovery.py inject --name '<vaulted>' --engine <active-harness> --json", workdir="~/.hermes-coder", timeout=30)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/skill_discovery.py inject --name '<vaulted>' --engine <active-harness> --json", workdir="~/.hermes/profiles/coder", timeout=30)
 ```
 
 Per-harness injection mechanisms (mirrors SOUL.md): **claude-code** `--append-system-prompt`
@@ -123,13 +123,13 @@ auto-registered** (`approvals.cron_mode: deny`) — register manually if desired
 
 ```
 # Monday 09:00 local — live-pull curated indexes + vaulted update check
-0 9 * * 1  cd ~/.hermes-coder && python3 scripts/skill_discovery.py refresh --confirm --json
+0 9 * * 1  cd ~/.hermes/profiles/coder && python3 scripts/skill_discovery.py refresh --confirm --json
 ```
 
 Dry-run anytime (reports planned pulls + update candidates, mutates nothing):
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/skill_discovery.py refresh --dry-run --json", workdir="~/.hermes-coder", timeout=60)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/skill_discovery.py refresh --dry-run --json", workdir="~/.hermes/profiles/coder", timeout=60)
 ```
 
 ## Exit codes

@@ -32,8 +32,8 @@ Do NOT trigger for:
 
 ```
 terminal(
-    command="python3 ~/.hermes-coder/scripts/auto_healer.py --repo '<project-dir>' --check '<test command>' --engine <active-harness> --json",
-    workdir="~/.hermes-coder",
+    command="python3 ~/.hermes/profiles/coder/scripts/auto_healer.py --repo '<project-dir>' --check '<test command>' --engine <active-harness> --json",
+    workdir="~/.hermes/profiles/coder",
     timeout=600
 )
 ```

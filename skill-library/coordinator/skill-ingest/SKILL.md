@@ -32,7 +32,7 @@ matched by the curator are auto-approved and bypass this path.
 ## Dispatch
 
 ```
-terminal(command="python3 ~/.hermes-coder/scripts/skill_ingest.py ingest --source '<path-or-git-url>' --name '<tool>' --origin '<org>' --json", workdir="~/.hermes-coder", timeout=600)
+terminal(command="python3 ~/.hermes/profiles/coder/scripts/skill_ingest.py ingest --source '<path-or-git-url>' --name '<tool>' --origin '<org>' --json", workdir="~/.hermes/profiles/coder", timeout=600)
 ```
 
 After a human reviews a Tier 2/3 source (status `awaiting_confirmation`), re-run with `--confirm`.
@@ -53,7 +53,7 @@ Flags: `--source` (local path or git/http(s) URL), `--name` (required), `--origi
   only `--confirm` after the user signs off (there is no auto-approval of untrusted code).
 - Execute a vaulted tool only via the `container-runner`, never on the host.
 - **Provenance required — no fabricated skills.** A bare local-path `--source` is accepted only when
-  it lives under a first-party root (`~/.hermes-coder/skills` or `scripts/`). Any other local path is
+  it lives under a first-party root (`~/.hermes/profiles/coder/skills` or `scripts/`). Any other local path is
   rejected (exit 2): a skill must arrive via a real remote URL (verifiable provenance) or through
   `skill-discovery`, which clones from a verified remote before ingesting. This stops a hand-authored
   `SKILL.md` dropped in `/tmp` from being vaulted as if it were trusted. (Discovery sets an internal

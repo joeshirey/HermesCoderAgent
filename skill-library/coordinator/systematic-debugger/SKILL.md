@@ -32,8 +32,8 @@ Do NOT use for:
 
 ```
 terminal(
-    command="python3 ~/.hermes-coder/scripts/systematic_debugger.py --bug '<bug description>' --repo '<project-dir>' --engine claude-code --json",
-    workdir="~/.hermes-coder",
+    command="python3 ~/.hermes/profiles/coder/scripts/systematic_debugger.py --bug '<bug description>' --repo '<project-dir>' --engine claude-code --json",
+    workdir="~/.hermes/profiles/coder",
     timeout=1800
 )
 ```
@@ -42,8 +42,8 @@ terminal(
 
 ```
 terminal(
-    command="python3 ~/.hermes-coder/scripts/systematic_debugger.py --resume '<bug-id>' --repo '<project-dir>' --engine claude-code --json",
-    workdir="~/.hermes-coder",
+    command="python3 ~/.hermes/profiles/coder/scripts/systematic_debugger.py --resume '<bug-id>' --repo '<project-dir>' --engine claude-code --json",
+    workdir="~/.hermes/profiles/coder",
     timeout=1800
 )
 ```

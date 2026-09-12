@@ -43,7 +43,7 @@ except ImportError:
     _record_dispatch = None
 
 
-# -- Config defaults (overridable via ~/.hermes-coder/config.yaml) --
+# -- Config defaults (overridable via ~/.hermes/profiles/coder/config.yaml) --
 
 DEFAULT_MAX_PARALLEL = 3
 DEFAULT_TIMEOUT = 600

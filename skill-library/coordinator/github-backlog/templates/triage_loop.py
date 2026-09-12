@@ -12,7 +12,7 @@ import time
 
 # --- CONFIGURATION (Modify as needed) ---
 REPO_PATH = "/path/to/your/repository"
-BACKLOG_CMD_PATH = "/Users/you/.hermes-coder/scripts/github_backlog.py"
+BACKLOG_CMD_PATH = "/Users/you/.hermes/profiles/coder/scripts/github_backlog.py"
 MAX_ITERATIONS = 35
 
 print(f"Starting incremental triage loop for repo: {REPO_PATH}...")
