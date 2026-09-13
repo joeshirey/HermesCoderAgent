@@ -120,6 +120,22 @@ def _dispatch(cmd: str, repo: str, timeout: int = 300) -> str:
         return ""
 
 
+def _origin_slug(repo: str) -> Optional[str]:
+    """Return 'owner/repo' for the local 'origin' remote, or None if it can't be
+    determined. Always pass this explicitly to `gh pr create --repo` so a forked
+    checkout can never fall back to gh's default target (the fork's upstream
+    parent) — gh infers the PR base repo from the fork relationship, not from
+    which remote 'origin' actually points at, so an unqualified `gh pr create`
+    on a fork silently opens against upstream instead of the fork itself."""
+    rc, out, _ = _run(["git", "remote", "get-url", "origin"], repo)
+    if rc != 0 or not out:
+        return None
+    m = re.search(r'[:/]([^/:]+)/([^/]+?)(?:\.git)?$', out.strip())
+    if not m:
+        return None
+    return f"{m.group(1)}/{m.group(2)}"
+
+
 # -- config resolution --
 
 def _read_flat_yaml_value(path: Path, key: str) -> Optional[str]:
@@ -807,6 +823,14 @@ def cmd_pr(args, repo: str) -> tuple:
         return ActionResult("failed", "pr", error=err), 3
 
     autonomy = resolve_autonomy(repo, args.autonomy)
+    slug = _origin_slug(repo)
+    if not slug:
+        return ActionResult(
+            "failed", "pr",
+            error="could not resolve 'owner/repo' from the origin remote; "
+                  "refusing to call `gh pr create` without an explicit --repo "
+                  "target (on a fork this would silently open upstream).",
+        ), 3
     base = resolve_base(repo, args.base)
     title = args.title or _pr_title(repo, base)
     body = _draft_pr_body(repo, args.engine, base)
@@ -824,7 +848,7 @@ def cmd_pr(args, repo: str) -> tuple:
     # Draft unless autonomy is 'full' and --ready was requested.
     draft = not (autonomy == "full" and args.ready)
     preview_cmd = (
-        f"gh pr create --base {base} --title '{title}'"
+        f"gh pr create --repo {slug} --base {base} --title '{title}'"
         f"{' --draft' if draft else ''} --body-file <generated>"
         f"{f' (body: Closes #{issue})' if issue else ''}"
         f"{' (+ final-review note)' if note else ''}"
@@ -846,6 +870,7 @@ def cmd_pr(args, repo: str) -> tuple:
         tmp.close()
         gh_args = [
             "gh", "pr", "create",
+            "--repo", slug,
             "--base", base,
             "--title", title,
             "--body-file", tmp.name,
