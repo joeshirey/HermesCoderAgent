@@ -84,7 +84,7 @@ def resolve_claude_model() -> str:
     return _read_coding_block().get("claude_model", "").strip()
 
 
-DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 
 
 def resolve_gemini_model() -> str:

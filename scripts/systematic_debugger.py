@@ -41,7 +41,7 @@ except ImportError:
         return ""
 
     def resolve_gemini_model() -> str:
-        return "gemini-3.6-flash"
+        return "gemini-3.8-flash"
 
 
 # -- Debug journal --

@@ -36,7 +36,7 @@ except ImportError:
         return ""
 
     def resolve_gemini_model() -> str:
-        return "gemini-3.6-flash"
+        return "gemini-3.8-flash"
 
     def resolve_tier_model(tier) -> str:
         return ""

@@ -32,7 +32,7 @@ Dispatch patterns for using OpenCode (`opencode run`) as the coding engine.
 ## One-Shot Command
 
 ```
-opencode run '<prompt>' -m google-vertex/gemini-3.6-flash
+opencode run '<prompt>' -m google-vertex/gemini-3.8-flash
 ```
 
 The `run` subcommand executes a message non-interactively and returns the result.
@@ -43,7 +43,7 @@ The `run` subcommand executes a message non-interactively and returns the result
 
 ```
 terminal(
-    command="opencode run '<self-contained task prompt>' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.6-flash",
+    command="opencode run '<self-contained task prompt>' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.8-flash",
     workdir="<project-dir>",
     timeout=300
 )
@@ -53,7 +53,7 @@ terminal(
 
 ```
 terminal(
-    command="opencode run 'In <file>, update <function> to <change>. Run existing tests to verify.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.6-flash",
+    command="opencode run 'In <file>, update <function> to <change>. Run existing tests to verify.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.8-flash",
     workdir="<project-dir>",
     timeout=120
 )
@@ -63,7 +63,7 @@ terminal(
 
 ```
 terminal(
-    command="opencode run 'Implement <feature> as described: <spec>. Create files in <location>. Write tests in <test-location>. Follow existing patterns in <example-file>.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.6-flash",
+    command="opencode run 'Implement <feature> as described: <spec>. Create files in <location>. Write tests in <test-location>. Follow existing patterns in <example-file>.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.8-flash",
     workdir="<project-dir>",
     timeout=300
 )
@@ -73,7 +73,7 @@ terminal(
 
 ```
 terminal(
-    command="opencode run 'Fix bug: <description>. Reproduce with: <repro-steps>. Root cause is likely in <file>. Add a regression test.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.6-flash",
+    command="opencode run 'Fix bug: <description>. Reproduce with: <repro-steps>. Root cause is likely in <file>. Add a regression test.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.8-flash",
     workdir="<project-dir>",
     timeout=180
 )
@@ -83,7 +83,7 @@ terminal(
 
 ```
 terminal(
-    command="opencode run 'Refactor <component>: <goal>. Preserve all existing behavior. Run tests after each change.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.6-flash",
+    command="opencode run 'Refactor <component>: <goal>. Preserve all existing behavior. Run tests after each change.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.8-flash",
     workdir="<project-dir>",
     timeout=300
 )
@@ -93,7 +93,7 @@ terminal(
 
 ```
 terminal(
-    command="opencode run '<review prompt>' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.6-flash",
+    command="opencode run '<review prompt>' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.8-flash",
     workdir="<project-dir>",
     timeout=120
 )
@@ -110,7 +110,7 @@ LOGIC (auto-FAIL): wrong conditionals, missing error handling for I/O, off-by-on
 SUGGESTIONS (non-blocking): missing tests, style, performance, naming.
 
 Run: git diff HEAD~1 HEAD
-Report: list security concerns, logic errors, and suggestions.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.6-flash",
+Report: list security concerns, logic errors, and suggestions.' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.8-flash",
     workdir="<project-dir>",
     timeout=120
 )
@@ -122,7 +122,7 @@ Report: list security concerns, logic errors, and suggestions.' --dir <project-d
 terminal(
     command="opencode run 'Fix ONLY these specific issues. Do NOT refactor or change anything else:
 <list of issues>
-' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.6-flash",
+' --dir <project-dir> --dangerously-skip-permissions -m google-vertex/gemini-3.8-flash",
     workdir="<project-dir>",
     timeout=120
 )
@@ -170,10 +170,10 @@ terminal(
      opencode models
      ```
 
-  2. Override the model on invocation using the `-m` or `--model` flag with an active, accessible model (e.g., `google-vertex/gemini-2.5-flash` or `google-vertex/gemini-3.6-flash`):
+  2. Override the model on invocation using the `-m` or `--model` flag with an active, accessible model (e.g., `google-vertex/gemini-3.8-flash` or `google-vertex/gemini-3.5-flash-lite`):
 
      ```bash
-     opencode run "..." -m google-vertex/gemini-2.5-flash
+     opencode run "..." -m google-vertex/gemini-3.8-flash
      ```
 
 ## Limitations

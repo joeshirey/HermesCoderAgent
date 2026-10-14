@@ -29,7 +29,7 @@ Route coding tasks between local Ollama models and cloud APIs based on complexit
 
 ### Cloud
 
-- **gemini-3.6-flash** (default cloud model) — full reasoning, multi-file, architecture
+- **gemini-3.8-flash** (default cloud model) — full reasoning, multi-file, architecture
 
 ## Health check
 

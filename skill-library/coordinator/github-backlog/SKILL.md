@@ -251,10 +251,10 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
 ### 5. Degraded Triage/Enrichment & opencode/Vertex Failures
 
 * **Problem**: When creating or triaging issues, they write to GitHub with empty boilerplate bodies containing `_TBD_` markers, and the tool returns exit code `3` (degraded).
-* **Root Cause**: The fast LLM tier (`model_fast`) is routed through the `opencode` (Vertex) backend engine when configured with a Gemini model (the current default is `claude-sonnet-5` via `claude-code`). If that backend is experiencing server-side errors, the backlog tool falls back to a minimal heuristic triage pass, producing empty `_TBD_` templates.
-* **Solution**: Re-route the fast-tier model to a stable, robust provider (like `claude-sonnet-5` via the standard `claude-code` CLI). Run this configuration command inside the terminal:
+* **Root Cause**: The fast LLM tier (`model_fast`) is routed through the `opencode` (Vertex) backend engine when configured with a Gemini model (the current default is `claude-haiku-5-5` via `claude-code`). If that backend is experiencing server-side errors, the backlog tool falls back to a minimal heuristic triage pass, producing empty `_TBD_` templates.
+* **Solution**: Re-route the fast-tier model to a stable, robust provider (like `claude-sonnet-5-5` via the standard `claude-code` CLI). Run this configuration command inside the terminal:
   ```bash
-  hermes config set coding.model_fast claude-sonnet-5
+  hermes config set coding.model_fast claude-sonnet-5-5
   ```
   This immediately re-routes the fast research and classification passes, restoring high-fidelity, fully enriched backlog issue creation and triage.
 
@@ -344,9 +344,9 @@ emits a full digest. Issue bodies and comments never carry a `Co-Authored-By` tr
 ### 4. Fast-Tier LLM Outages (Degraded Mode)
 
 * **Problem**: Fast metadata classification and research passes rely on the `model_fast` configuration tier. If the active engine for that model (such as `opencode` or `antigravity`) experiences a transient server outage or credentials error, the backlog tool will gracefully degrade to title-only boilerplate.
-* **Solution**: Temporarily re-route the `model_fast` configuration to a robust, fully-functional cloud engine (such as routing `model_fast` to `claude-sonnet-5` via the native `claude-code` harness):
+* **Solution**: Temporarily re-route the `model_fast` configuration to a robust, fully-functional cloud engine (such as routing `model_fast` to `claude-sonnet-5-5` via the native `claude-code` harness):
   ```bash
-  hermes config set coding.model_fast claude-sonnet-5
+  hermes config set coding.model_fast claude-sonnet-5-5
   ```
   This immediately bypasses the degraded engine and restores full-depth, high-fidelity research passes.
 
