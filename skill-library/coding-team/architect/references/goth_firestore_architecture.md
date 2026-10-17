@@ -47,7 +47,7 @@ By default, the Google Cloud Go SDK client connects to the standard `(default)` 
 
 ### Named Database Targeting
 
-Use `NewClientWithDatabase` to bind the client specifically to a custom-named database (e.g., `restres`):
+Use `NewClientWithDatabase` to bind the client specifically to a custom-named database (e.g., `app-db`):
 
 ```go
 package db
@@ -79,7 +79,7 @@ To support local offline development without requiring active cloud credentials 
 ```go
  databaseID := os.Getenv("FIRESTORE_DATABASE")
  if databaseID == "" {
-  databaseID = "restres"
+  databaseID = "app-db"
  }
 
  var repo db.ReservationRepository

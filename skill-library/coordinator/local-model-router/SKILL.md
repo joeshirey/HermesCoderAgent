@@ -37,8 +37,8 @@ Before routing to local, always verify Ollama is healthy:
 
 ```
 terminal(
-    command="python3 ~/.hermes/profiles/coder/scripts/ollama_manager.py health",
-    workdir="~/.hermes/profiles/coder",
+    command="python3 $HERMES_HOME/scripts/ollama_manager.py health",
+    workdir="$HERMES_HOME",
     timeout=10
 )
 ```

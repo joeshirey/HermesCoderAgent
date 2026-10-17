@@ -254,7 +254,7 @@ This interface dynamically routes executions depending on the host hardware arch
 #### 2. Intel Macs & Linux Hosts → Docker (Fallback)
 
 - **The Intel Mac Reality:** Since Intel Macs do not support the Apple Silicon-specific virtualization features of `container`, the interface automatically falls back to **Docker**.
-- **Implementation:** Leverages standard, localized Docker configurations (`docker run --rm -d --network none ...`) to ensure the design is fully backward-compatible and portable, allowing development to proceed flawlessly on your current Intel Mac while instantly scaling up to native speeds if you migrate to an M-series machine.
+- **Implementation:** Leverages standard, localized Docker configurations (`docker run --rm -d --network none ...`) to ensure the design is fully backward-compatible and portable, allowing development to proceed on any host with Docker present while using native virtualization automatically on Apple Silicon.
 
 #### 3. Automatic Runner Probe & Selection
 

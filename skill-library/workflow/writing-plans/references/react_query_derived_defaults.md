@@ -2,7 +2,7 @@
 
 ## Overview
 
-When developing React applications driven by asynchronous server state (such as fetching data feeds via TanStack React Query `useQuery`), we often need to default a dropdown selector or state filter to a specific "active" or "default" item returned by the server (e.g., defaulting a season filter dropdown to the loaded `is_active` season).
+When developing React applications driven by asynchronous server state (such as fetching data feeds via TanStack React Query `useQuery`), we often need to default a dropdown selector or state filter to a specific "active" or "default" item returned by the server (e.g., defaulting an event filter dropdown to the loaded `is_active` event).
 
 ## The Anti-Pattern: `useEffect` State Syncing
 
@@ -10,22 +10,22 @@ A common but fragile approach is to listen to the query's completion inside a `u
 
 ```tsx
 // ❌ ANTI-PATTERN: Creates duplicate render cycles, stale states, and triggers ESLint errors
-const [selectedSeasonId, setSelectedSeasonId] = useState("");
-const { data: seasonsData } = useQuery({ queryKey: ["seasons"], queryFn: weeksApi.listSeasons });
+const [selectedEventId, setSelectedEventId] = useState("");
+const { data: eventsData } = useQuery({ queryKey: ["events"], queryFn: eventsApi.listEvents });
 
-const seasons = seasonsData?.seasons || [];
-const activeSeason = seasons.find(s => s.is_active);
+const events = eventsData?.events || [];
+const activeEvent = events.find(s => s.is_active);
 
 useEffect(() => {
-  if (activeSeason && !selectedSeasonId) {
-    setSelectedSeasonId(activeSeason.id);
+  if (activeEvent && !selectedEventId) {
+    setSelectedEventId(activeEvent.id);
   }
-}, [seasonsData, activeSeason, selectedSeasonId]); // Trips react-hooks/exhaustive-deps & set-state-in-effect
+}, [eventsData, activeEvent, selectedEventId]); // Trips react-hooks/exhaustive-deps & set-state-in-effect
 ```
 
 ### Why this is bad
 1. **Double Renders:** Triggering `setState` inside `useEffect` right after a query resolves forces React to execute an immediate second render pass, degrading user performance.
-2. **Stale State Desyncs:** If the server data changes out-of-band (e.g., another season is marked active), the local state remains pinned to the stale value until the effect executes again.
+2. **Stale State Desyncs:** If the server data changes out-of-band (e.g., another event is marked active), the local state remains pinned to the stale value until the effect executes again.
 3. **Compiler Warnings:** It frequently triggers strict ESLint rules such as `react-hooks/exhaustive-deps` or custom hooks state-setting rules, failing automated code-quality pipelines.
 
 ---
@@ -36,43 +36,43 @@ Instead of synchronizing the server default into a local state, maintain the sta
 
 ```tsx
 // ✅ GOLD-STANDARD: Zero extra renders, instantly responsive, 100% type-safe, and compiler-clean
-const [selectedSeasonId, setSelectedSeasonId] = useState(""); // "" = use server default
+const [selectedEventId, setSelectedEventId] = useState(""); // "" = use server default
 
-const { data: seasonsData } = useQuery({ queryKey: ["seasons"], queryFn: weeksApi.listSeasons });
+const { data: eventsData } = useQuery({ queryKey: ["events"], queryFn: eventsApi.listEvents });
 
-const seasons = seasonsData?.seasons || [];
+const events = eventsData?.events || [];
 
 // Derive the effective ID directly during the render pass!
-const effectiveSeasonId = selectedSeasonId || seasons.find((s) => s.is_active)?.id || "";
+const effectiveEventId = selectedEventId || events.find((s) => s.is_active)?.id || "";
 
 // Feed the effective ID into subsequent scoped queries safely
 const { data: messagesData } = useQuery({
-  queryKey: ["messages", effectiveSeasonId],
-  queryFn: () => messagesApi.list(effectiveSeasonId),
-  enabled: !!effectiveSeasonId, // Only query when effective ID is resolved!
+  queryKey: ["messages", effectiveEventId],
+  queryFn: () => messagesApi.list(effectiveEventId),
+  enabled: !!effectiveEventId, // Only query when effective ID is resolved!
 });
 ```
 
 ### Why this works perfectly
-1. **Zero Side Effects:** No `useEffect` is required. The dropdown defaults itself naturally to the active season without any additional state mutations.
-2. **Instant Responsiveness:** As soon as the user selects a different season in the dropdown, `selectedSeasonId` is updated, the derived `effectiveSeasonId` switches instantly, and React Query triggers the scoped feed query immediately.
+1. **Zero Side Effects:** No `useEffect` is required. The dropdown defaults itself naturally to the active event without any additional state mutations.
+2. **Instant Responsiveness:** As soon as the user selects a different event in the dropdown, `selectedEventId` is updated, the derived `effectiveEventId` switches instantly, and React Query triggers the scoped feed query immediately.
 3. **Pristine Quality Gates:** Eliminates all hooks-related compilation or linter warnings, guaranteeing a 100% green build.
 
 ---
 
 ## UI Binding Pattern
 
-Bind the selector's `value` attribute to the derived `effectiveSeasonId` and its `onChange` handler to the state setter `setSelectedSeasonId`:
+Bind the selector's `value` attribute to the derived `effectiveEventId` and its `onChange` handler to the state setter `setSelectedEventId`:
 
 ```tsx
 <select
-  value={effectiveSeasonId}
-  onChange={(e) => setSelectedSeasonId(e.target.value)}
+  value={effectiveEventId}
+  onChange={(e) => setSelectedEventId(e.target.value)}
   className="rounded-md border-gray-300 py-1.5 pl-3 pr-10 text-sm focus:border-blue-500"
 >
-  {seasons.map((s) => (
+  {events.map((s) => (
     <option key={s.id} value={s.id}>
-      {s.year} Season {s.is_active ? "(Active)" : ""}
+      {s.name} {s.is_active ? "(Active)" : ""}
     </option>
   ))}
 </select>

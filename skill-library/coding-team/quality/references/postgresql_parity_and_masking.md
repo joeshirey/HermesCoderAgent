@@ -1,6 +1,6 @@
-# PostgreSQL Parity Testing and Agent Masking Workarounds
+# PostgreSQL Parity Testing and Local Credential Handling
 
-When migrating automated test suites from SQLite to PostgreSQL (to ensure full production-database parity), you must handle strict referential integrity rules and adapt your local testing commands to bypass automated secret-masking filters.
+When migrating automated test suites from SQLite to PostgreSQL (to ensure full production-database parity), you must handle strict referential integrity rules and keep local database credentials out of command lines.
 
 ---
 
@@ -57,29 +57,21 @@ _TEST_DATABASE_URL = _build_url(_RAW_DATABASE_URL)
 
 ---
 
-## 3. Circumventing Automated Password Masking Filters
+## 3. Handling Local Database Credentials
 
-Automated AI agents (like Hermes) run strict post-processing filters designed to detect default passwords (like `postgres` or generic password terms) and replace them with asterisks `***` on the fly.
+Agent harnesses may redact credential-like strings in command output and inputs. Do not try to work around redaction; instead, keep credentials out of command lines entirely.
 
-This can inadvertently mangle your command-line inputs or `.env` files, making it impossible to connect to a local database over TCP/IP because the agent literally executes `postgres:***@localhost` as the password string.
-
-### Workaround A: Custom Non-Standard Passwords
-
-Never use `postgres` or standard words containing `password`/`pass` as your local database container credentials. Set the container password to a completely customized string (e.g., `localdevpw` or `localdevdb`) that does not trigger automated system regex filters.
+* **Load credentials from the environment.** Read `DATABASE_URL` (and any password) via `os.environ`, and supply it from your shell environment or a git-ignored `.env` file loaded by your test runner or `python-dotenv`.
+* **Never inline credentials** in commands, scripts, docs, or tracked files, in plain text or in any encoded form.
+* **Use throwaway local-only passwords** for disposable dev/test containers, and never reuse real credentials there.
 
 ```bash
-docker exec <container_name> psql -U postgres -c "ALTER USER postgres WITH PASSWORD 'localdevpw';"
+# .env (git-ignored)
+# DATABASE_URL=postgresql+asyncpg://postgres:<local-dev-password>@localhost:5432/app_test
+
+set -a; source .env; set +a
+pytest
 ```
-
-### Workaround B: In-Memory Shell Decoding
-
-If the system continues to mask your command-line arguments on input, encode your entire `DATABASE_URL` in base64, and decode it in-memory inside a bash subshell *during* execution:
-
-```bash
-DATABASE_URL=$(echo -n 'cG9zdGdyZXNxbDovL3Bvc3RncmVzOmxvY2FsZGV2cHdAbG9jYWxob3N0OjU0MzIvYXBwX3Rlc3Q=' | base64 -d) pytest
-```
-
-Because the password `localdevpw` is hidden inside the base64 string `cG9zdGdyZXNxbDovL3Bvc3RncmVzOmxvY2FsZGV2cHdAbG9jYWxob3N0OjU0MzIvYXBwX3Rlc3Q=`, the agent's input scanner will never detect it, and bash will expand the subshell correctly at runtime before passing the real, intact URL downstream to `pytest`!
 
 ---
 

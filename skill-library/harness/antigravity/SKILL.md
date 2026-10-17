@@ -160,7 +160,7 @@ terminal(
 ### "Skill 'harness-antigravity' not found" Error
 
 - **Cause:** The skill directory structure (`harness/antigravity/SKILL.md`) and the frontmatter name mismatch can cause standard `skill_view` calls with `harness-antigravity` or `antigravity` to fail.
-- **Solution:** Load the skill by combining the category and directory name: `skill_view(name="harness:antigravity")`. Alternatively, fall back to reading the file directly using the `read_file` tool with the path `/Users/you/.hermes/profiles/coder/skills/harness/antigravity/SKILL.md`.
+- **Solution:** Load the skill by combining the category and directory name: `skill_view(name="harness:antigravity")`. Alternatively, fall back to reading the file directly using the `read_file` tool with the path `$HERMES_HOME/skills/harness/antigravity/SKILL.md`.
 
 ### Bash Syntax & Parsing Errors in Dispatch Prompts
 

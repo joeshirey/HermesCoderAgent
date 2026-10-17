@@ -27,7 +27,7 @@ moment a third-party skill or MCP server enters the picture.
 
 ## Trust tiers
 
-- **Tier 1 — local / official:** path under `~/.hermes/profiles/coder/skills` or `~/.hermes/profiles/coder/scripts`.
+- **Tier 1 — local / official:** path under `$HERMES_HOME/skills` or `$HERMES_HOME/scripts`.
   Auto-approved; audit bypassed (RFC line 119).
 - **Tier 2 — trusted org:** `--origin` matches a configured `trusted_orgs` entry (google,
   anthropic, aws, microsoft, modelcontextprotocol, …).
@@ -43,8 +43,8 @@ the user) have actually read it.
 
 ## Store locations (global — shared across repos)
 
-- Registry: `~/.hermes/profiles/coder/vetted_tools.json` (keyed by tool name → entry).
-- Vault: `~/.hermes/profiles/coder/vetted_vault/<name>/` (immutable approved copy; executions should run
+- Registry: `$HERMES_HOME/vetted_tools.json` (keyed by tool name → entry).
+- Vault: `$HERMES_HOME/vetted_vault/<name>/` (immutable approved copy; executions should run
   from here, never the remote/downloaded path — that lock-in is what Phase 4 will enforce).
 
 ## Dispatch
@@ -52,25 +52,25 @@ the user) have actually read it.
 Classify a source:
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/vetted_vault.py classify --source '<path>' --origin '<org>' --json", workdir="~/.hermes/profiles/coder", timeout=30)
+terminal(command="python3 $HERMES_HOME/scripts/vetted_vault.py classify --source '<path>' --origin '<org>' --json", workdir="$HERMES_HOME", timeout=30)
 ```
 
 Check status before injecting a non-local skill/MCP:
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/vetted_vault.py check --source '<path>' --name '<tool>' --origin '<org>' --json", workdir="~/.hermes/profiles/coder", timeout=30)
+terminal(command="python3 $HERMES_HOME/scripts/vetted_vault.py check --source '<path>' --name '<tool>' --origin '<org>' --json", workdir="$HERMES_HOME", timeout=30)
 ```
 
 Vault + approve (Tier 2/3 needs `--confirm` after manual review):
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/vetted_vault.py vault --source '<path>' --name '<tool>' --origin '<org>' --confirm --json", workdir="~/.hermes/profiles/coder", timeout=60)
+terminal(command="python3 $HERMES_HOME/scripts/vetted_vault.py vault --source '<path>' --name '<tool>' --origin '<org>' --confirm --json", workdir="$HERMES_HOME", timeout=60)
 ```
 
 Diff-audit an upstream change and (after review) replace the vault copy:
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/vetted_vault.py update --source '<upstream>' --name '<tool>' --confirm --json", workdir="~/.hermes/profiles/coder", timeout=600)
+terminal(command="python3 $HERMES_HOME/scripts/vetted_vault.py update --source '<upstream>' --name '<tool>' --confirm --json", workdir="$HERMES_HOME", timeout=600)
 ```
 
 `update` re-hashes upstream; if unchanged → `up-to-date`. If changed, it runs the security-auditor

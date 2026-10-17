@@ -20,8 +20,8 @@ terminal command, and never your own patch/write tools:
 
 ```
 terminal(
-    command="python3 ~/.hermes/profiles/coder/scripts/dispatch_coder.py --repo '<project-dir>' --tier <tier-per-size> --max-turns <N> --prompt '<self-contained task prompt>' --json",
-    workdir="~/.hermes/profiles/coder",
+    command="python3 $HERMES_HOME/scripts/dispatch_coder.py --repo '<project-dir>' --tier <tier-per-size> --max-turns <N> --prompt '<self-contained task prompt>' --json",
+    workdir="$HERMES_HOME",
     background=true
 )
 ```
@@ -105,7 +105,7 @@ never dispatch those here manually.
   `Co-Authored-By` trailers — preferred over per-prompt instructions.
 - **Cohesive UI & Test Dispatches:** for UI changes, name both the component file and its
   test file in the same prompt so they move together.
-- **Query Parameter Mock Matching Trap in Tests:** When updating frontend API endpoints to accept query parameters (e.g., appending `?week_id=...`), exact-string route matches in unit/integration test mocks (e.g., `url === "/ranks/available"`) will break. Ensure that test mocks are written with prefix-matching (e.g., `url.startsWith("/ranks/available")`) to be resilient to query parameter additions.
+- **Query Parameter Mock Matching Trap in Tests:** When updating frontend API endpoints to accept query parameters (e.g., appending `?event_id=...`), exact-string route matches in unit/integration test mocks (e.g., `url === "/items/available"`) will break. Ensure that test mocks are written with prefix-matching (e.g., `url.startsWith("/items/available")`) to be resilient to query parameter additions.
 - **Shell Backtick and `${var}` Expansion Trap:** in terminal command strings, unescaped
   backticks and `${...}` are interpreted by the host shell. Wrap prompts in single quotes;
   escape embedded single quotes as `'\''`. Better: use `--prompt-file` with dispatch_coder

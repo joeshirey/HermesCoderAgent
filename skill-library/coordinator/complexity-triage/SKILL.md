@@ -26,8 +26,8 @@ Before every coding engine dispatch. The triage result determines:
 
 ```
 terminal(
-    command="python3 ~/.hermes/profiles/coder/scripts/dynamic_curator.py --task '<task summary>' --repo '<project-dir>'",
-    workdir="~/.hermes/profiles/coder",
+    command="python3 $HERMES_HOME/scripts/dynamic_curator.py --task '<task summary>' --repo '<project-dir>'",
+    workdir="$HERMES_HOME",
     timeout=30
 )
 ```

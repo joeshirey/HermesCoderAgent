@@ -21,26 +21,26 @@ timed sandbox, and **only from its immutable vault copy** (lock-in execution).
 - **else `docker` on PATH → `docker`.**
 - **else → `local-restricted`** (no sandbox available; refuses Tier 2/3 — only Tier 1 may run).
 
-This host (Intel Mac, Docker present) selects **docker**.
+On a host with Docker present (and no Apple `container` runtime), it selects **docker**.
 
 ## Dispatch
 
 Probe:
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/container_runner.py probe --json", workdir="~/.hermes/profiles/coder", timeout=15)
+terminal(command="python3 $HERMES_HOME/scripts/container_runner.py probe --json", workdir="$HERMES_HOME", timeout=15)
 ```
 
 Run a vaulted tool sandboxed (lock-in execution):
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/container_runner.py run --from-vault '<tool>' --cmd '<cmd>' --tier <n> --json", workdir="~/.hermes/profiles/coder", timeout=300)
+terminal(command="python3 $HERMES_HOME/scripts/container_runner.py run --from-vault '<tool>' --cmd '<cmd>' --tier <n> --json", workdir="$HERMES_HOME", timeout=300)
 ```
 
 Dry-run (print the sandbox command, execute nothing):
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/container_runner.py run --from-vault '<tool>' --cmd '<cmd>' --tier <n> --dry-run --json", workdir="~/.hermes/profiles/coder", timeout=30)
+terminal(command="python3 $HERMES_HOME/scripts/container_runner.py run --from-vault '<tool>' --cmd '<cmd>' --tier <n> --dry-run --json", workdir="$HERMES_HOME", timeout=30)
 ```
 
 Flags: `--from-vault <name>` (lock-in; resolves the approved vault path) **or** `--source <path>`

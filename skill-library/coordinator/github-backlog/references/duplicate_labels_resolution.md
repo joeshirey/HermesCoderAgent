@@ -65,14 +65,10 @@ To instantly resolve existing conflicts across all historical issues on GitHub w
 python3 -c "
 import subprocess
 
+# Map each issue number to the stale labels to remove (fill in from your triage audit)
 resolutions = {
-    21: ['risk:medium'],  # keep risk:low
-    19: ['effort:XL'],    # keep effort:L
-    16: ['risk:medium'],  # keep risk:high
-    15: ['severity:critical', 'risk:medium'], # keep severity:medium, risk:low
-    14: ['effort:L'],     # keep effort:XL
-    13: ['impact:internal-debt'], # keep impact:user-visible
-    10: ['effort:S', 'risk:low', 'confidence:medium'] # keep effort:M, risk:high, confidence:high
+    <issue-number>: ['risk:medium'],  # e.g. keep risk:low
+    <issue-number>: ['effort:XL', 'confidence:medium'],  # e.g. keep effort:L, confidence:high
 }
 
 for num, to_remove in resolutions.items():

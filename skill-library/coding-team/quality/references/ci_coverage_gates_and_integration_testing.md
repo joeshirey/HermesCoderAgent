@@ -89,10 +89,10 @@ Testing deep asynchronous polling loops (`run_poll_cycle()`) that execute transa
 When testing a polling cycle that triggers external network fetches (such as external provider API calls) and acts on completion to auto-finalize standings:
 
 1. **Bind Session Factories:** If the poller opens independent database sessions via a global `async_session_factory()`, override or rebind that session maker to the test `db_engine` in your test fixture. When testing on an in-memory SQLite `StaticPool`, binding both the poller session maker and the test thread's `db_session` to the same engine guarantees they see the same data in real-time.
-2. **Mock Clock & Hour Gates:** Mock timezone-dependent play hours filters (`is_during_tournament_hours`) to return `True` to allow execution under the test clock.
+2. **Mock Clock & Hour Gates:** Mock timezone-dependent play hours filters (`is_during_event_hours`) to return `True` to allow execution under the test clock.
 3. **Simulate Sequence of API Responses:** Mock external network clients (`provider_client`) to simulate:
    - *Active Round State:* Returns an in-progress round status (`status_completed = False`) to verify that the poller upserts results but does not touch scoring finalizations.
-   - *Final Completed State:* Returns a completed round status (`STATUS_FINAL`, `status_completed = True`) to verify that completion is detected, scoring engines auto-finalize player rosters, and overall season standings are updated with the correct aggregate results.
+   - *Final Completed State:* Returns a completed round status (`STATUS_FINAL`, `status_completed = True`) to verify that completion is detected, scoring engines auto-finalize player entries, and overall standings are updated with the correct aggregate results.
 
 #### 📝 Reference Python Test Pattern
 
@@ -108,29 +108,29 @@ async def _bind_poller_session_factory(db_engine, monkeypatch):
 
 
 async def test_run_poll_cycle_polls_and_auto_finalizes(
-    _bind_poller_session_factory, db_session, test_season, monkeypatch
+    _bind_poller_session_factory, db_session, test_series, monkeypatch
 ):
-    # 1. Seed complete season and active tournament
+    # 1. Seed complete series and active event
     today = date.today()
-    tournament = Tournament(
-        season_id=test_season.id,
-        name="Mock Major",
+    event = Event(
+        series_id=test_series.id,
+        name="Mock Event",
         start_date=today - timedelta(days=1),
         end_date=today + timedelta(days=1),
-        picks_lock_at=datetime(2099, 1, 1),
+        entries_lock_at=datetime(2099, 1, 1),
         provider_event_id="evt-completed",
         is_complete=False,
         sequence=1,
     )
-    db_session.add(tournament)
+    db_session.add(event)
     await db_session.commit()
 
     # 2. Mock play hours and provider API client responses
     import app.services.provider_poller as poller_module
-    monkeypatch.setattr(poller_module, "is_during_tournament_hours", lambda **kw: True)
+    monkeypatch.setattr(poller_module, "is_during_event_hours", lambda **kw: True)
 
     async def mock_fetch_leaderboard(event_id):
-        return [ProviderPlayerResult(player_id=1, total_score="E", position=1)]
+        return [ProviderPlayerResult(player_id=1, total_score=100, position=1)]
 
     async def mock_fetch_event_status(event_id):
         return {
@@ -146,11 +146,11 @@ async def test_run_poll_cycle_polls_and_auto_finalizes(
     summary = await poller_module.run_poll_cycle(force=True)
 
     # 4. Assertions: Polling upserted results & auto-finalized scores
-    assert len(summary["tournaments"]) == 1
+    assert len(summary["events"]) == 1
     
     # Reload from DB and verify completion
-    await db_session.refresh(tournament)
-    assert tournament.is_complete is True
+    await db_session.refresh(event)
+    assert event.is_complete is True
     
     # Verify player scores are generated and standings are updated
     scores = (await db_session.execute(select(PlayerScore))).scalars().all()

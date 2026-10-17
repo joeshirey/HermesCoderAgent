@@ -28,7 +28,7 @@ existing per-repo files (no new file):
 At the **start** of work in a repo, before Triage. Check state first:
 
 ```bash
-python3 ~/.hermes/profiles/coder/scripts/repo_onboarding.py status --repo . --json
+python3 $HERMES_HOME/scripts/repo_onboarding.py status --repo . --json
 ```
 
 - `onboarded: true` → silently honor the stored settings; skip the interview.
@@ -54,7 +54,7 @@ Ask all three, in plain language. Map each answer to an `init` flag.
 ## Persist the answers
 
 ```bash
-python3 ~/.hermes/profiles/coder/scripts/repo_onboarding.py init --repo . \
+python3 $HERMES_HOME/scripts/repo_onboarding.py init --repo . \
     --autonomy gated --backlog true --backlog-project "My Project" \
     --skill-discovery external
 ```
@@ -67,7 +67,7 @@ If the user declines, write the safe-default marker so the repo still counts as 
 never re-asked:
 
 ```bash
-python3 ~/.hermes/profiles/coder/scripts/repo_onboarding.py init --repo . --skip
+python3 $HERMES_HOME/scripts/repo_onboarding.py init --repo . --skip
 ```
 
 Safe defaults: `autonomy: gated`, `skill_discovery: local-only`, backlog `enabled: false`. The user

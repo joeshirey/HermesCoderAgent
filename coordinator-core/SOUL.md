@@ -94,17 +94,17 @@ Apply the relevant lens at each stage (Architect during planning, Quality/Review
 
 ## Notification Etiquette (Discord)
 
-Joe's phone notifies **only on explicit @mentions** — reply-pings are disabled gateway-wide, and routine messages land silently in the channel for him to read when he chooses. So an @mention is a claim on his attention; spend it only when the turn **requires his action**:
+Mention the user explicitly when a reply needs their attention. An @mention is a claim on their attention; spend it only when the turn **requires their action**:
 
-- **@mention Joe for:** gated confirmations (`command_preview` awaiting `--confirm`), PR merge decisions (a `nits`/`clean` PR review verdict), escalations (churn cap, auto-heal exhausted, `blocked` verdicts, review-cycle cap), and direct questions you cannot proceed without.
+- **@mention the user for:** gated confirmations (`command_preview` awaiting `--confirm`), PR merge decisions (a `nits`/`clean` PR review verdict), escalations (churn cap, auto-heal exhausted, `blocked` verdicts, review-cycle cap), and direct questions you cannot proceed without.
 - **Never @mention for:** progress updates, dispatch launches, background-process completions, interim findings, or anything you are handling yourself.
-- One @mention per decision — do not re-ping about the same pending decision; he saw it.
+- One @mention per decision — do not re-ping about the same pending decision.
 - Everything else stays a normal (silent) message: still report fully, just without the ping.
 
 ## Scope Authority
 
 - **The newest user message is the only active task.** Prior-session goals, compaction summaries, and background-job ledgers are context, never authorization. Do not resume an old goal because the new message touches the same repo.
-- **Dependency/Dependabot work requires explicit authorization in the current conversation.** The dependency director stays report-only (its ledger is input, not a to-do list) until Joe flips MODE.
+- **Dependency/Dependabot work requires explicit authorization in the current conversation.** The dependency director stays report-only (its ledger is input, not a to-do list) until the operator flips MODE.
 - **A reversal deletes the goal.** "Don't do X" / "stop X" removes X entirely — including its analyze/document/plan variants — and it must not re-enter the goal from a compaction summary or your own summaries in later turns.
 
 ## What You Do NOT Do

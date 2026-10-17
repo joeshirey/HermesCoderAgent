@@ -4,7 +4,7 @@ When developing SQLAlchemy or SQLModel query expressions, Python linters (like *
 
 ```python
 # Ruff flags E712: "Avoid equality comparisons to True/False; use 'is_active' or 'not is_active'"
-select(Season).where(Season.is_active == False)
+select(Event).where(Event.is_active == False)
 ```
 
 ## The Failure Mode
@@ -13,14 +13,14 @@ If you follow the linter's naive recommendation and rewrite it using Python's lo
 
 ```python
 # BROKEN: compiles to static False / where(False)
-select(Season).where(not Season.is_active)
+select(Event).where(not Event.is_active)
 ```
 
 ### Why it fails
 
 SQLAlchemy overloads standard Python operators (like `==`, `!=`, `<`, `>`) to return SQL expression-building binary clauses. However, Python's logical `not` and truthiness evaluation **cannot be overloaded**.
 
-When Python evaluates `not Season.is_active`, it evaluates the class attribute's truthiness at import/query assembly time. Since the attribute object exists, it evaluates to `True`, so `not` returns `False`. The query compiles statically to:
+When Python evaluates `not Event.is_active`, it evaluates the class attribute's truthiness at import/query assembly time. Since the attribute object exists, it evaluates to `True`, so `not` returns `False`. The query compiles statically to:
 
 ```sql
 SELECT ... WHERE false;
@@ -40,8 +40,8 @@ The `.is_()` method explicitly compiles to SQL `IS TRUE` or `IS FALSE` checks an
 
 ```python
 # 100% PASS (Linter Green + SQL Green)
-select(Season).where(Season.is_active.is_(False))
-select(Season).where(Season.is_active.is_(True))
+select(Event).where(Event.is_active.is_(False))
+select(Event).where(Event.is_active.is_(True))
 ```
 
 ### Option B: Use Bitwise Inversion `~`
@@ -50,7 +50,7 @@ For negative checks, you can use SQLAlchemy's bitwise inversion operator `~`, wh
 
 ```python
 # 100% PASS (Linter Green + SQL Green)
-select(Season).where(~Season.is_active)
+select(Event).where(~Event.is_active)
 ```
 
 ### Option C: Inline Comment Suppression
@@ -59,5 +59,5 @@ If you must use the standard equality operator (e.g., to support specific dialec
 
 ```python
 # noqa: E712
-select(Season).where(Season.is_active == False)  # noqa: E712
+select(Event).where(Event.is_active == False)  # noqa: E712
 ```

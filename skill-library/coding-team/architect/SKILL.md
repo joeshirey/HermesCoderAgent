@@ -62,32 +62,32 @@ When designing cloud-backed services (e.g., Firestore, DynamoDB, MongoDB):
 ### 2. Multi-Database targeting on Cloud Providers (GCP Firestore)
 
 - **Datastore vs Native Mode**: If the standard `(default)` database in a GCP project is configured in Datastore Mode, native Firestore queries will return a `FailedPrecondition` error.
-- **Target Named Databases**: Solve this by creating a secondary named database in Native Mode (e.g., `restres`) and instantiating the Go client using `NewClientWithDatabase(ctx, projectID, databaseID)` instead of the default constructor.
+- **Target Named Databases**: Solve this by creating a secondary named database in Native Mode (e.g., `app-db`) and instantiating the Go client using `NewClientWithDatabase(ctx, projectID, databaseID)` instead of the default constructor.
 - **Dynamic Database Routing**: Expose the database name as a configurable environment variable (e.g., `FIRESTORE_DATABASE`) to route queries dynamically across environments.
 
 ### 3. Gated Invitation & Pre-Seeded Account-Claiming Pattern (OAuth)
 
-When designing web applications where users must submit data (like rosters, picks, or preferences) before their first login, or when they encounter onboarding hurdles prior to a hard game-day or transaction deadline (e.g. fantasy pools, sports leagues, gated enterprise portals):
+When designing web applications where users must submit data (like entries, selections, or preferences) before their first login, or when they encounter onboarding hurdles prior to a hard submission deadline (e.g. event registrations, contests, gated enterprise portals):
 
 - **The Seed Stage:** Pre-create/seed the user record in the `User` table with their `email` and `display_name` (leaving their OAuth `google_sub` or login provider identifier as `None`/`null`).
-- **The Operation Stage:** Because a valid `User` record now exists with a unique ID, the system allows the commissioner or background processes to create, validate, and persist user-owned data (e.g. `Pick` rows, rosters, profiles) on their behalf *before* they have registered an account.
+- **The Operation Stage:** Because a valid `User` record now exists with a unique ID, the system allows an administrator or background processes to create, validate, and persist user-owned data (e.g. `Entry` rows, profiles) on their behalf *before* they have registered an account.
 - **The Claim/Link Stage:** Update the OAuth callback service (e.g. `get_or_create_user(db, email, google_sub, ...)`) to support email-matching fallbacks:
   - If a user is not found by `google_sub`, perform a case-insensitive lookup on `email`.
   - If a pre-seeded user is found by `email` (with a null/placeholder `google_sub`), bind the authenticating `google_sub` to their Google ID, normalize their data, and complete the sign-in.
-  - This seamlessly merges their account, instantly claiming their pre-seeded roster and standings history on first login with zero manual data-reconciliation or account-merging scripts needed!
+  - This seamlessly merges their account, instantly claiming their pre-seeded entries and score history on first login with zero manual data-reconciliation or account-merging scripts needed!
 
-### 4. Multi-Phase Season Partitioning & Strategy Strategy
+### 4. Multi-Phase Schedule Partitioning & Strategy Pattern
 
-When designing systems that must transition between distinct calendar phases (such as regular season vs postseason bowl games, or qualifying rounds vs main tournaments) where pick constraints, validation rules, and scoring formulas differ:
+When designing systems that must transition between distinct calendar phases (such as a regular phase vs a playoff/final phase, or qualifying rounds vs main events) where entry constraints, validation rules, and scoring formulas differ:
 
-- **Single discriminator column (`season_phase`):** Add a simple phase column to your parent scheduler table (such as `Week.season_phase` = `"regular"` or `"bowl"`). This avoids polluting child tables with separate flags or creating completely separate relational schemas.
-- **Strategized Pick Validation (`pick_validator.py`):** Rather than writing multiple validator classes that duplicate code, inject the `season_phase` directly into your validation context and conditionally bypass phase-inapplicable checks:
-  - *Regular Phase:* Enforce all standard roster constraints, point ranges, and draft limits.
-  - *Bowl/Postseason Phase:* Short-circuit or bypass standard draft ranges, eligibility constraints, or bye structures (since postseason schedules don't have standard BYE weeks and games involve unranked teams), but keep core kickoff-based lockout and unique-pick integrity checks active.
-- **Polymorphic Scoring Engine (`scoring_orchestrator.py`):** Route scoring to distinct, phase-specific calculation functions (e.g. `compute_base_score` vs `compute_bowl_score`) on-the-fly depending on the target week's `season_phase`:
-  - *Regular Scoring:* Use dynamic rank-based and opponent-adjusted points.
-  - *Postseason Scoring:* Use flat-rate points per correct selection (e.g., flat 10.0 points per correct loser and 15.0 points per correct winner).
-- **Default Leaderboard Gating (`standings.py`):** By default, exclude postseason phases from your main standings and streak queries (e.g., query `WHERE Week.season_phase == 'regular'`) to prevent postseason scores from polluting or skewing your canonical regular season total tables. Expose optional `season_phase` query parameters to allow dedicated postseason standings dashboards to be rendered independently.
+- **Single discriminator column (`phase`):** Add a simple phase column to your parent scheduler table (such as `Round.phase` = `"regular"` or `"final"`). This avoids polluting child tables with separate flags or creating completely separate relational schemas.
+- **Strategized Entry Validation (`entry_validator.py`):** Rather than writing multiple validator classes that duplicate code, inject the `phase` directly into your validation context and conditionally bypass phase-inapplicable checks:
+  - *Regular Phase:* Enforce all standard entry constraints, value ranges, and selection limits.
+  - *Final Phase:* Short-circuit or bypass standard selection ranges, eligibility constraints, or bye structures (since final-phase schedules don't follow the regular rotation), but keep core start-time-based lockout and unique-entry integrity checks active.
+- **Polymorphic Scoring Engine (`scoring_service.py`):** Route scoring to distinct, phase-specific calculation functions (e.g. `compute_base_score` vs `compute_final_score`) on-the-fly depending on the target round's `phase`:
+  - *Regular Scoring:* Use dynamic weighted or difficulty-adjusted points.
+  - *Final-Phase Scoring:* Use flat-rate points per correct selection (e.g., flat 10.0 points per correct selection and 15.0 points for the overall winner).
+- **Default Results Gating (`results.py`):** By default, exclude final-phase rounds from your main results and streak queries (e.g., query `WHERE Round.phase == 'regular'`) to prevent final-phase scores from skewing your canonical regular-phase totals. Expose an optional `phase` query parameter so dedicated final-phase results views can be rendered independently.
 
 ---
 

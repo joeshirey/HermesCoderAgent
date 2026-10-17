@@ -33,8 +33,8 @@ Before ANY of these writes:
 
 ```
 terminal(
-    command="python3 ~/.hermes/profiles/coder/scripts/humanizer_gateway.py --text '<draft>' --type commit --repo '<project-dir>'",
-    workdir="~/.hermes/profiles/coder",
+    command="python3 $HERMES_HOME/scripts/humanizer_gateway.py --text '<draft>' --type commit --repo '<project-dir>'",
+    workdir="$HERMES_HOME",
     timeout=180
 )
 ```
@@ -43,8 +43,8 @@ For longer text, pipe via stdin:
 
 ```
 terminal(
-    command="echo '<draft>' | python3 ~/.hermes/profiles/coder/scripts/humanizer_gateway.py - --type doc --repo '<project-dir>'",
-    workdir="~/.hermes/profiles/coder",
+    command="echo '<draft>' | python3 $HERMES_HOME/scripts/humanizer_gateway.py - --type doc --repo '<project-dir>'",
+    workdir="$HERMES_HOME",
     timeout=180
 )
 ```

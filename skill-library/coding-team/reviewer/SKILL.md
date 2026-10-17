@@ -40,10 +40,10 @@ Apply this lens for final code review, PR preparation, and synthesizing feedback
 
 ### Correctness & Logic Tracing
 
-- [ ] **Trace Code End-to-End**: Follow logic changes across all execution paths (e.g., ensuring a fix for live active games doesn't break final completed-tournament logic or run on unintended stages). Ask: "When else does this code execute?"
+- [ ] **Trace Code End-to-End**: Follow logic changes across all execution paths (e.g., ensuring a fix for live in-progress events doesn't break completed-event logic or run on unintended stages). Ask: "When else does this code execute?"
 - [ ] **Address All Known Gotchas**: Explicitly check the issue or specification for "Known Gotchas", warnings, or latent edge cases. Treat each as a strict requirement.
 - [ ] **Type-Safe ORM Mutations**: Verify that database deletes and updates are fully compliant with strict static type-checkers (e.g. MyPy). Avoid calling `.rowcount` directly on generic `db.execute(delete(...))` results since they are typed as `Result[Any]`. Instead, query the target ORM record and call `await db.delete(record)` natively.
-- [ ] **Symmetric Resource-Level Access**: Check that any custom resource-level guards (such as checking `tournament.is_side_bet`) are enforced symmetrically for all user types, not just guests, to prevent standard users from creating orphan registrations on main-season assets.
+- [ ] **Symmetric Resource-Level Access**: Check that any custom resource-level guards (such as checking `event.is_private`) are enforced symmetrically for all user types, not just guests, to prevent standard users from creating orphan registrations on main-season assets.
 - [ ] Code does what the spec says
 - [ ] Edge cases handled
 - [ ] Error handling appropriate (not over-engineered)

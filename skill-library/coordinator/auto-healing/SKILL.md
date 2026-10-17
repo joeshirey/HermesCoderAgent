@@ -35,8 +35,8 @@ run it in the background and act on the completion notification:
 
 ```
 terminal(
-    command="python3 ~/.hermes/profiles/coder/scripts/auto_healer.py --repo '<project-dir>' --check '<test command>' --engine claude-code --tier <tier> --json",
-    workdir="~/.hermes/profiles/coder",
+    command="python3 $HERMES_HOME/scripts/auto_healer.py --repo '<project-dir>' --check '<test command>' --engine claude-code --tier <tier> --json",
+    workdir="$HERMES_HOME",
     background=true,
     notify_on_complete=true
 )

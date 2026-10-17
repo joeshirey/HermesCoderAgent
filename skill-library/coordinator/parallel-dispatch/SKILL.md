@@ -55,7 +55,7 @@ A batch runs multiple full coding-engine passes and will not finish inside a blo
 timeout — run it in the background and act on the completion notification:
 
 ```
-terminal(command="echo '<spec-json>' | python3 ~/.hermes/profiles/coder/scripts/parallel_dispatch.py --repo '<project-dir>' --engine claude-code --max-parallel 3 --json", workdir="~/.hermes/profiles/coder", background=true, notify_on_complete=true)
+terminal(command="echo '<spec-json>' | python3 $HERMES_HOME/scripts/parallel_dispatch.py --repo '<project-dir>' --engine claude-code --max-parallel 3 --json", workdir="$HERMES_HOME", background=true, notify_on_complete=true)
 ```
 
 **`notify_on_complete=true` is mandatory** — without it the run is silent and you end up in a
@@ -70,7 +70,7 @@ Dry run (validate + print the planned worktree paths and dispatch commands; crea
 nothing — use it to sanity-check a batch before committing engine time):
 
 ```
-terminal(command="echo '<spec-json>' | python3 ~/.hermes/profiles/coder/scripts/parallel_dispatch.py --repo '<project-dir>' --dry-run --json", workdir="~/.hermes/profiles/coder", timeout=60)
+terminal(command="echo '<spec-json>' | python3 $HERMES_HOME/scripts/parallel_dispatch.py --repo '<project-dir>' --dry-run --json", workdir="$HERMES_HOME", timeout=60)
 ```
 
 ## How isolation works

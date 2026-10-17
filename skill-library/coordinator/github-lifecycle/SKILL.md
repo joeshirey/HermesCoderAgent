@@ -45,7 +45,7 @@ Precedence: `--autonomy` flag > `<repo>/.hermes-github.yaml` (`autonomy:`) > `co
 Commit (local; drafts + humanizes the message from the staged diff):
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine opencode --branch '<branch>' --json", workdir="~/.hermes/profiles/coder", timeout=600)
+terminal(command="python3 $HERMES_HOME/scripts/github_lifecycle.py commit --repo '<project-dir>' --engine opencode --branch '<branch>' --json", workdir="$HERMES_HOME", timeout=600)
 ```
 
 > **`--repo` is a local filesystem path** (e.g. `/Users/you/Code/GitHub/myproject`), **NOT**
@@ -74,7 +74,7 @@ are never flagged. On a `blocked` result, do not push — resolve the hygiene is
 Push (gated — add `--confirm` only after user approval; pass `--force` when updating a rebased feature branch):
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py push --repo '<project-dir>' --force --json", workdir="~/.hermes/profiles/coder", timeout=180)
+terminal(command="python3 $HERMES_HOME/scripts/github_lifecycle.py push --repo '<project-dir>' --force --json", workdir="$HERMES_HOME", timeout=180)
 ```
 
 **Always push through this tool — never a raw `git push`.** The `push` subcommand enforces two
@@ -98,7 +98,7 @@ If a commit message needs to be corrected (e.g. to conform to conventional commi
 1. **Amend Locally**: Run `git commit --amend` with the correct `-m` message. Leave authorship alone — `--amend` preserves the existing author, and the repository's configured identity is the source of truth. If an amend must restate it explicitly, read it from the config rather than hardcoding a name or address: `--author="$(git config user.name) <$(git config user.email)>"`.
 2. **Force-Push Safely**: Run the lifecycle push command with the `--force` flag:
    ```bash
-   python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py push --repo "<project-dir>" --force --json
+   python3 $HERMES_HOME/scripts/github_lifecycle.py push --repo "<project-dir>" --force --json
    ```
    This automatically applies `--force-with-lease` tracking under the hood to safely update the remote branch and the active GitHub PR without breaking the tree.
 
@@ -111,14 +111,14 @@ yields nothing (the issue silently stays open), and a bare embedded digit like `
 matched. So don't rely on inference — thread the known issue number through explicitly.
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine opencode --base main --issue <N> --json", workdir="~/.hermes/profiles/coder", timeout=180)
+terminal(command="python3 $HERMES_HOME/scripts/github_lifecycle.py pr --repo '<project-dir>' --engine opencode --base main --issue <N> --json", workdir="$HERMES_HOME", timeout=180)
 ```
 
 CI status (one-shot) / CI watch (blocking):
 
 ```
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py ci-status --repo '<project-dir>' --json", workdir="~/.hermes/profiles/coder", timeout=60)
-terminal(command="python3 ~/.hermes/profiles/coder/scripts/github_lifecycle.py ci-watch --repo '<project-dir>' --json", workdir="~/.hermes/profiles/coder", timeout=1900)
+terminal(command="python3 $HERMES_HOME/scripts/github_lifecycle.py ci-status --repo '<project-dir>' --json", workdir="$HERMES_HOME", timeout=60)
+terminal(command="python3 $HERMES_HOME/scripts/github_lifecycle.py ci-watch --repo '<project-dir>' --json", workdir="$HERMES_HOME", timeout=1900)
 ```
 
 ## The gated confirmation flow
@@ -212,7 +212,7 @@ This tool calls `humanizer_gateway.humanize()` internally for commit (`commit`) 
 
 ### Formatting Violations and Remote CI Failures (Ruff/Linter Block)
 
-- **The Issue**: When making edits or modifications (especially inside backend python files, migrations, or tests), minor spacing or structure adjustments (like splitting a line that actually fits within the maximum characters limit) can violate the strict linter/formatter (such as `ruff format`). While python tests might pass perfectly locally, pushing code with a formatting or lints violation will immediately break remote CI build steps (e.g., Google Cloud Build `backend-ci` step) and block deployment. This is especially true for tests (e.g., `backend/tests/test_forums_api.py`) which can easily be neglected during development but are still strictly checked by CI.
+- **The Issue**: When making edits or modifications (especially inside backend python files, migrations, or tests), minor spacing or structure adjustments (like splitting a line that actually fits within the maximum characters limit) can violate the strict linter/formatter (such as `ruff format`). While python tests might pass perfectly locally, pushing code with a formatting or lints violation will immediately break remote CI build steps (e.g., Google Cloud Build `backend-ci` step) and block deployment. This is especially true for tests (e.g., `backend/tests/test_comments_api.py`) which can easily be neglected during development but are still strictly checked by CI.
 
 ### "Secure-by-Default" Settings Validation Failures in CI/CD
 
@@ -223,17 +223,17 @@ This tool calls `humanizer_gateway.humanize()` internally for commit (`commit`) 
 
 - **The Issue**: Naively parsing the request's `Host` header via a colon split (e.g., `host.split(":")[0]` to discard port suffixes) breaks when encountering IPv6 bracket notation. For instance, `[::1]:8000` is split into `['[', '', '1]', '8000']`, yielding `[` as the host name. This causes loopback checks (such as secure cookie or CSRF bypass checks) to fail on local IPv6 environments.
 - **The Solution**: Detect brackets explicitly when parsing the `Host` header. If it starts with `"["`, locate the closing bracket `"]"` and slice `host[:close_idx + 1]` to correctly extract the loopback host (e.g. `[::1]`) before evaluating loopback/localhost status.
-- **The Multi-line Loop Pitfall**: Inside Python test suites (e.g. `test_side_bets_api.py`), writing a multiline loop statement like:
+- **The Multi-line Loop Pitfall**: Inside Python test suites (e.g. `test_registrations_api.py`), writing a multiline loop statement like:
   ```python
   for u in (test_user, user_b):
       db_session.add(
-          TournamentRegistration(tournament_id=locked_side_bet.id, user_id=u.id)
+          EventRegistration(event_id=locked_event.id, user_id=u.id)
       )
   ```
   will fail `ruff format --check` because of split lines that can easily fit on a single line, even though local `pytest` executes it perfectly. Writing it as a clean single-line statement resolves the linter check:
   ```python
   for u in (test_user, user_b):
-      db_session.add(TournamentRegistration(tournament_id=locked_side_bet.id, user_id=u.id))
+      db_session.add(EventRegistration(event_id=locked_event.id, user_id=u.id))
   ```
 - **The Solution**:
   1. Never bypass formatting. Always run the linter and formatter directly on modified directories (e.g. `ruff check --fix . && ruff format .` inside `backend/`) before staging/committing. Ensure all test suite files and newly created helper files are formatted as well.
@@ -290,7 +290,7 @@ When coordinating multi-stage coding tasks (where some steps write configuration
 
 ### Stale Main Branch Forking & Grouped Issues Workflow (PR Duplication Trap)
 
-- **The Issue**: Creating a feature branch from a local `main` branch that is out-of-sync or stale relative to `origin/main` often leads to duplicate pull requests or massive rebase conflicts. This is especially critical when implementing groups/bundles of issues (e.g. Issues 229, 230, and 231) where multiple dependencies intersect.
+- **The Issue**: Creating a feature branch from a local `main` branch that is out-of-sync or stale relative to `origin/main` often leads to duplicate pull requests or massive rebase conflicts. This is especially critical when implementing groups/bundles of issues (e.g. three related issues bundled into one branch) where multiple dependencies intersect.
 - **The Solution**:
   1. **Strict Local Main Synchronization**: Always explicitly synchronize your local `main` branch with the remote origin before branching, rebasing, or executing any group tasks:
      ```bash
